@@ -1,0 +1,49 @@
+"""Offline profiles and environment-provided official account credentials."""
+import os
+import hashlib
+import re
+import uuid
+from typing import Any
+
+
+def offline_profile(username: str) -> dict[str, Any]:
+    username = username.strip()
+    if not re.fullmatch(r"[A-Za-z0-9_]{1,16}", username):
+        raise ValueError("离线玩家名须为 1–16 位英文字母、数字或下划线。")
+    # Matches Java's UUID.nameUUIDFromBytes("OfflinePlayer:<name>".getBytes(UTF_8)).
+    raw = bytearray(hashlib.md5(("OfflinePlayer:" + username).encode("utf-8")).digest())
+    raw[6] = (raw[6] & 0x0F) | 0x30
+    raw[8] = (raw[8] & 0x3F) | 0x80
+    player_uuid = uuid.UUID(bytes=bytes(raw))
+    return {"name": username, "uuid": str(player_uuid), "type": "offline"}
+
+
+def current_profile(config: dict[str, Any]) -> dict[str, Any]:
+    profiles = config.get("profiles", [])
+    active = config.get("active_profile", "")
+    for profile in profiles:
+        if profile.get("name") == active:
+            return profile
+    if profiles:
+        config["active_profile"] = profiles[0].get("name", "")
+        return profiles[0]
+    # Migrate the earlier single-profile settings on first launch.
+    if config.get("username"):
+        profile = {"name": config["username"], "uuid": config.get("uuid", ""), "type": "microsoft"}
+        config["profiles"] = [profile]
+        config["active_profile"] = profile["name"]
+        return profile
+    return {}
+
+
+def launch_identity(profile: dict[str, Any]) -> dict[str, str]:
+    if profile.get("type") == "offline":
+        return {"name": profile["name"], "uuid": profile["uuid"].replace("-", ""),
+                "token": "0", "user_type": "legacy"}
+    token = os.environ.get("MC_ACCESS_TOKEN", "")
+    if not token:
+        raise RuntimeError("微软账号尚未配置：请设置 MC_ACCESS_TOKEN 环境变量。")
+    if not profile.get("uuid"):
+        raise RuntimeError("当前正版账号缺少 UUID。")
+    return {"name": profile["name"], "uuid": profile["uuid"].replace("-", ""),
+            "token": token, "user_type": "msa"}
