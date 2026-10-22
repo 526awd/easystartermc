@@ -21,7 +21,7 @@ Windows ZIP 和 Linux 压缩包需要完整解压后运行，不能只复制主�
 
 ## 首次启动
 
-1. 确认已安装与目标 Minecraft 版本兼容的 Java。启动器找不到 Java 时，在主菜单选择 **S 设置**，填写 Java 可执行文件路径；也可以配置 `JAVA_HOME`。
+1. 确认已安装与目标 Minecraft 版本兼容的 Java。启动时，启动器会读取版本元数据要求并从用户设置、`JAVA_HOME`、`PATH` 和常见安装目录中自动选择对应主版本；用户设置的 Java 只有在版本匹配时才优先使用。若未检测到所需版本，请安装它，或在 **S 设置** 中填写 Java 可执行文件路径。输入 `auto` 可清除固定路径并恢复自动选择。
 2. 选择 **I 安装版本**，从清单中选取版本。启动器会从所选下载源获取版本元数据、客户端、运行库和游戏资源，并校验下载文件。首次安装需要网络和足够的磁盘空间。
 3. 选择 **A 账号档案**，添加离线账号、登录 Microsoft，或登录 Yggdrasil 第三方认证服务器。
 4. 返回主菜单，选择 **L 启动游戏**，再选已安装的版本。
@@ -42,7 +42,7 @@ Windows ZIP 和 Linux 压缩包需要完整解压后运行，不能只复制主�
 
 ## Java、游戏目录与配置
 
-Java 版本要求取决于你选择的 Minecraft 版本。请为该版本安装兼容的 Java；启动器不会捆绑或自动安装 Java。可在 **S 设置** 中指定 Java 可执行文件，也可通过 `JAVA_HOME` 指定。
+Java 版本要求取决于你选择的 Minecraft 版本。启动器会根据版本 JSON 中的 `javaVersion.majorVersion` 选择已安装的匹配版本；旧版本元数据缺少此字段时，会根据 Minecraft 版本号推断。启动器不会捆绑或自动安装 Java；若缺少所需主版本，请先安装，再通过 **S 设置**、`JAVA_HOME` 或 `PATH` 提供给启动器。
 
 默认游戏目录：Windows `%APPDATA%\.minecraft`；macOS `~/Library/Application Support/minecraft`；Linux `$XDG_DATA_HOME/minecraft` 或 `~/.local/share/minecraft`。可用 `MINECRAFT_DIR` 覆盖游戏目录。
 
@@ -95,6 +95,7 @@ git push origin v1.2
 - `auth_microsoft.py`：Microsoft OAuth、PKCE、Xbox/XSTS/Minecraft 换票
 - `auth_yggdrasil.py`：Yggdrasil 登录、令牌管理与 authlib-injector
 - `download_sources.py`：官方源与 BMCLAPI 镜像地址映射
+- `java_runtime.py`：扫描并选择与 Minecraft 版本匹配的 Java
 - `metadata.py`：Mojang 官方版本清单
 - `downloader.py`：并发下载、文件校验与原子写入
 - `installer.py`：客户端、依赖库和游戏资源安装

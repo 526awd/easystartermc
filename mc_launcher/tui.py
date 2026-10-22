@@ -218,9 +218,11 @@ def _settings_menu(settings: dict[str, Any]) -> None:
     value = input("> ").strip()
     if value:
         settings["minecraft_dir"] = str(Path(value).expanduser())
-    print(f"Java 可执行文件 [{settings.get('java', '自动检测 / JAVA_HOME')}]")
-    value = input("> ").strip()
-    if value:
+    print(f"Java 可执行文件 [{settings.get('java') or '自动选择兼容版本'}]")
+    value = input("路径 (Enter 保持当前；输入 auto 自动选择) > ").strip()
+    if value.lower() == "auto":
+        settings["java"] = ""
+    elif value:
         settings["java"] = value
     current_source = settings.get("download_source", OFFICIAL)
     if current_source not in (OFFICIAL, BMCLAPI):

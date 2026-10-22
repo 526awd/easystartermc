@@ -1,9 +1,7 @@
 """Build JVM arguments from Mojang metadata and start an installed version."""
 import os
-import platform
 import re
 import shlex
-import shutil
 import subprocess
 import sys
 import zipfile
@@ -12,6 +10,7 @@ from typing import Any
 
 from .installer import ensure_libraries
 from .download_sources import OFFICIAL, label as source_label
+from .java_runtime import select_java
 from .platforms import allowed, native_artifact
 
 
@@ -77,13 +76,7 @@ def _extract_natives(root: Path, version: str, metadata: dict[str, Any]) -> Path
 
 def build_command(root: Path, version: str, metadata: dict[str, Any], identity: dict[str, str],
                   memory_mb: int, java_path: str = "") -> tuple[list[str], Path]:
-    if not java_path:
-        java_path = os.environ.get("JAVA_HOME", "")
-        if java_path and Path(java_path).is_dir():
-            java_path = str(Path(java_path) / "bin" / ("java.exe" if platform.system() == "Windows" else "java"))
-        java_path = java_path or shutil.which("java") or ""
-    if not java_path or not Path(java_path).is_file():
-        raise RuntimeError("找不到 Java。请安装与游戏版本兼容的 Java，并配置 JAVA_HOME 或启动器设置。")
+    java_path, _ = select_java(version, metadata, java_path)
     version_dir = root / "versions" / version
     jar_id = metadata.get("jar", version)
     client = root / "versions" / jar_id / f"{jar_id}.jar"
@@ -160,6 +153,8 @@ def build_command(root: Path, version: str, metadata: dict[str, Any], identity: 
 def launch(root: Path, version: str, metadata: dict[str, Any], identity: dict[str, str],
            memory_mb: int, java_path: str = "", source: str = OFFICIAL) -> int:
     print(f"检查游戏运行库；下载源：{source_label(source)}，镜像失败时会尝试官方源。")
+    java_path, java_major = select_java(version, metadata, java_path)
+    print(f"为 Minecraft {version} 选择 Java {java_major}：{java_path}")
 
     def progress(done: int, total: int, filename: str) -> None:
         print(f"\r运行库检查 {done}/{total}  {filename[:48]:48}", end="", flush=True)
