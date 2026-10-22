@@ -27,7 +27,7 @@ python .\mc_tui.py
 
 默认游戏目录：Windows `%APPDATA%\.minecraft`；macOS `~/Library/Application Support/minecraft`；Linux `$XDG_DATA_HOME/minecraft` 或 `~/.local/share/minecraft`。也可用 `MINECRAFT_DIR` 覆盖目录，使用 `JAVA_HOME` 指定 Java。
 
-- `tui.py`：菜单交互
+- `tui.py`：Rich 菜单、表格和安装进度展示
 - `accounts.py`：账号档案与启动身份
 - `auth_microsoft.py`：授权码 OAuth、PKCE、本机回调、Xbox/XSTS/Minecraft 换票
 - `metadata.py`：Mojang 官方版本清单
