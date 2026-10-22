@@ -11,7 +11,7 @@ from rich.panel import Panel
 from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn, TimeRemainingColumn
 from rich.table import Table
 
-from . import accounts, config, installer, launcher, metadata
+from . import accounts, config, installer, launcher, metadata, version_manager
 from .download_sources import BMCLAPI, OFFICIAL, label as source_label
 
 console = Console(highlight=False)
@@ -212,6 +212,40 @@ def _install_menu(root: Path, settings: dict[str, Any]) -> None:
     console.print(Panel(f"版本 {version_id} 安装完成。", border_style="green"))
 
 
+def _delete_menu(root: Path) -> None:
+    installed = launcher.versions(root)
+    if not installed:
+        _pause("没有可删除的已安装版本。")
+        return
+
+    table = Table(title="已安装版本", box=box.SIMPLE_HEAVY, header_style="bold cyan")
+    table.add_column("编号", justify="right", style="dim", no_wrap=True)
+    table.add_column("版本", style="bold")
+    table.add_column("类型")
+    for index, (name, meta) in enumerate(installed, 1):
+        table.add_row(str(index), name, str(meta.get("type", "custom")))
+    console.print(table)
+
+    selected = input("版本编号 (Enter 返回) > ").strip()
+    if not selected:
+        return
+    if not selected.isdigit() or not 1 <= int(selected) <= len(installed):
+        _pause("编号无效。")
+        return
+
+    version_id = installed[int(selected) - 1][0]
+    confirmation = input(f"确认删除版本 {version_id} 的本地文件？输入 y 确认 (默认取消) > ").strip().lower()
+    if confirmation != "y":
+        _pause("已取消删除。")
+        return
+
+    version_manager.delete_version(root, version_id)
+    console.print(Panel(
+        f"已删除版本 {version_id}。共享游戏资源和运行库保留。",
+        border_style="green"))
+    _pause()
+
+
 def _settings_menu(settings: dict[str, Any]) -> None:
     root = config.game_dir(settings)
     print(f"Minecraft 目录 [{root}]")
@@ -273,7 +307,7 @@ def main() -> int:
         details.add_row("已安装", f"{len(found)} 个版本")
         console.print(Panel(details, title="[bold green]MC TUI · Java 启动器[/bold green]",
                             border_style="green", box=box.DOUBLE))
-        console.print(Panel("[bold green]L[/bold green] 启动游戏   [bold cyan]I[/bold cyan] 安装版本   [bold yellow]A[/bold yellow] 账号档案   [bold blue]S[/bold blue] 设置   [bold red]Q[/bold red] 退出",
+        console.print(Panel("[bold green]L[/bold green] 启动游戏   [bold cyan]I[/bold cyan] 安装版本   [bold magenta]D[/bold magenta] 删除版本   [bold yellow]A[/bold yellow] 账号档案   [bold blue]S[/bold blue] 设置   [bold red]Q[/bold red] 退出",
                             border_style="green", padding=(0, 1)))
         choice = input("\n选择 > ").strip().lower()
         try:
@@ -286,6 +320,8 @@ def main() -> int:
             elif choice == "i":
                 _install_menu(root, settings)
                 _pause()
+            elif choice == "d":
+                _delete_menu(root)
             elif choice == "l":
                 if not found:
                     _pause("没有已安装版本；请先选择 I 安装。")
