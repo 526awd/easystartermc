@@ -1,4 +1,4 @@
-# MC TUI
+# [**easystartermc**](https://github.com/526awd/easystartermc)
 
 使用 Python 编写的 Minecraft Java 版终端启动器。代码按功能拆分到 `mc_launcher/`，每个功能模块各一个文件；Microsoft OAuth 使用系统凭据库保存刷新令牌。
 
@@ -16,6 +16,8 @@ python .\mc_tui.py
 ## 跨平台发行包
 
 GitHub Actions 会在推送、Pull Request 或手动触发时并行构建 Windows、Linux，以及 macOS Intel 和 Apple Silicon 版本。构建产物会包含运行所需的 DLL/动态库：Windows 下载 ZIP，Linux 下载 tar.gz，macOS 下载 `.pkg` 安装包。在仓库的 **Actions** 页面打开 **Build desktop packages** 运行，从 **Artifacts** 下载对应平台的产物。Windows 和 Linux 解压后运行 `easystartermc`；macOS 安装后可在终端运行 `easystartermc`。macOS 安装包未签名，首次安装可能需要在系统提示中手动确认。Windows/Linux 配置保存在程序目录，macOS 配置保存在 `~/Library/Application Support/MC TUI/launcher.json`。
+
+推送版本标签（例如 `v1.2`）会自动构建四个平台的发行包，并创建 GitHub Release、生成发布说明和上传所有安装文件。可通过 `git tag -s v1.2 -m "v1.2"` 创建签名标签，再运行 `git push origin v1.2` 发布。
 
 ## 账号
 

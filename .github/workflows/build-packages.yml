@@ -74,8 +74,13 @@ jobs:
           mkdir -p pkgroot/usr/local/lib/easystartermc pkgroot/usr/local/bin
           cp -R dist/easystartermc/. pkgroot/usr/local/lib/easystartermc/
           ln -s /usr/local/lib/easystartermc/easystartermc pkgroot/usr/local/bin/easystartermc
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            package_version="${GITHUB_REF_NAME#v}"
+          else
+            package_version="1.0.${GITHUB_RUN_NUMBER}"
+          fi
           pkgbuild --root pkgroot --identifier org.easystartermc.launcher \
-            --version "1.0.${GITHUB_RUN_NUMBER}" --install-location / \
+            --version "$package_version" --install-location / \
             dist/easystartermc-${{ matrix.target }}.pkg
 
       - name: Upload package
@@ -85,3 +90,24 @@ jobs:
           path: dist/easystartermc-${{ matrix.target }}.*
           if-no-files-found: error
           retention-days: 14
+
+  release:
+    name: Publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download platform packages
+        uses: actions/download-artifact@v7
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Create release and upload packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "$GITHUB_REF_NAME" release-assets/*
+          --verify-tag --title "$GITHUB_REF_NAME" --generate-notes
