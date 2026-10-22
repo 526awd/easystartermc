@@ -104,3 +104,13 @@ git push origin v1.2
 - `config.py`：游戏目录和本地设置
 
 相关资料：[Minecraft 启动器教程](https://zh.minecraft.wiki/w/Tutorial:%E7%BC%96%E5%86%99%E5%90%AF%E5%8A%A8%E5%99%A8?variant=zh-cn)、[Microsoft 授权码流程与 PKCE](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow)、[authlib-injector 启动器技术规范](https://yushijinhun.github.io/authlib-injector/en/launcher-technical-specification.html)、[Yggdrasil 服务端技术规范](https://yushijinhun.github.io/authlib-injector/en/yggdrasil-server-technical-specification.html)。
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=526awd%2Feasystartermc&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=526awd/easystartermc&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=526awd/easystartermc&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=526awd/easystartermc&type=date&legend=top-left" />
+ </picture>
+</a>
