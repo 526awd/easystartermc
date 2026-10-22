@@ -13,6 +13,7 @@ from rich.table import Table
 
 from . import accounts, config, installer, launcher, metadata, version_manager
 from .download_sources import BMCLAPI, OFFICIAL, label as source_label
+from .tui_selection import prompt_session, select_item
 
 console = Console(highlight=False)
 
@@ -31,6 +32,14 @@ def _profiles(settings: dict[str, Any]) -> list[dict[str, Any]]:
     return value if isinstance(value, list) else []
 
 
+def _profile_kind(profile: dict[str, Any]) -> str:
+    if profile.get("type") == "offline":
+        return "离线"
+    if profile.get("type") == "yggdrasil":
+        return f"第三方 ({profile.get('auth_server', '')})"
+    return "Microsoft OAuth" if profile.get("client_id") else "Microsoft 手动令牌"
+
+
 def accounts_menu(settings: dict[str, Any]) -> None:
     while True:
         _clear()
@@ -46,14 +55,10 @@ def accounts_menu(settings: dict[str, Any]) -> None:
         table.add_column("类型")
         for index, profile in enumerate(profiles, 1):
             marker = "★" if profile.get("profile_key", profile.get("name")) == active else " "
-            kind = "离线" if profile.get("type") == "offline" else (
-                f"第三方 ({profile.get('auth_server', '')})" if profile.get("type") == "yggdrasil" else
-                "Microsoft OAuth" if profile.get("client_id") else "Microsoft 手动令牌"
-            )
-            table.add_row(str(index), marker, str(profile.get("name", "")), kind)
+            table.add_row(str(index), marker, str(profile.get("name", "")), _profile_kind(profile))
         if profiles:
             console.print(table)
-        console.print(Panel("[A] 添加离线档案   [O] Microsoft 登录   [Y] 第三方登录   [M] 手动档案\n[数字] 设为当前   [D] 删除   [Enter] 返回",
+        console.print(Panel("[A] 添加离线档案   [O] Microsoft 登录   [Y] 第三方登录   [M] 手动档案\n[S] 选择当前档案   [数字] 快速切换   [D] 删除   [Enter] 返回",
                             border_style="blue", padding=(0, 1)))
         choice = input("> ").strip().lower()
         if not choice:
@@ -97,17 +102,15 @@ def accounts_menu(settings: dict[str, Any]) -> None:
                 password = getpass.getpass("密码（不会保存）> ")
 
                 def choose_profile(available: list[dict[str, Any]]) -> dict[str, Any]:
-                    options = Table(title="选择游戏档案", box=box.SIMPLE_HEAVY)
-                    options.add_column("编号", justify="right")
-                    options.add_column("玩家名")
-                    options.add_column("UUID")
-                    for number, item in enumerate(available, 1):
-                        options.add_row(str(number), str(item.get("name", "")), str(item.get("id", "")))
-                    console.print(options)
-                    answer = input("档案编号 > ").strip()
-                    if not answer.isdigit() or not 1 <= int(answer) <= len(available):
-                        raise ValueError("档案编号无效。")
-                    return available[int(answer) - 1]
+                    selected = select_item(
+                        list(enumerate(available)), title="选择游戏档案",
+                        columns=("玩家名", "UUID"),
+                        render=lambda pair: (str(pair[1].get("name", "")),
+                                             str(pair[1].get("id", ""))),
+                        console=console, prompt="选择档案 > ")
+                    if selected is None:
+                        raise ValueError("已取消游戏档案选择。")
+                    return selected[1]
 
                 profile = auth_yggdrasil.sign_in(server, username, password, choose_profile)
                 profiles[:] = [item for item in profiles if not (
@@ -135,10 +138,23 @@ def accounts_menu(settings: dict[str, Any]) -> None:
             _pause("已保存。令牌仍需通过 MC_ACCESS_TOKEN 环境变量提供。")
         elif choice == "d":
             if not profiles:
+                _pause("没有可删除的账号档案。")
                 continue
-            index = input("要删除的编号 > ").strip()
-            if index.isdigit() and 1 <= int(index) <= len(profiles):
-                removed = profiles.pop(int(index) - 1)
+            selected_item = select_item(
+                list(enumerate(profiles)), title="选择要删除的账号档案",
+                columns=("玩家", "类型"),
+                render=lambda pair: (str(pair[1].get("name", "")),
+                                     _profile_kind(pair[1])),
+                console=console, prompt="删除档案 > ")
+            if selected_item is not None:
+                index, candidate = selected_item
+                confirmation = input(
+                    f"确认删除档案 {candidate.get('name', '')}？输入 y 确认 (默认取消) > "
+                ).strip().lower()
+                if confirmation != "y":
+                    _pause("已取消删除。")
+                    continue
+                removed = profiles.pop(index)
                 if removed.get("type") == "microsoft" and removed.get("client_id"):
                     try:
                         from .auth_microsoft import remove_account
@@ -155,10 +171,26 @@ def accounts_menu(settings: dict[str, Any]) -> None:
                     settings["active_profile"] = (profiles[0].get("profile_key", profiles[0]["name"])
                                                    if profiles else "")
                 config.save(settings)
+        elif choice == "s":
+            if not profiles:
+                _pause("没有可切换的账号档案。")
+                continue
+            selected_item = select_item(
+                list(enumerate(profiles)), title="选择当前账号档案",
+                columns=("玩家", "类型"),
+                render=lambda pair: (str(pair[1].get("name", "")),
+                                     _profile_kind(pair[1])),
+                console=console, prompt="当前账号 > ")
+            if selected_item is not None:
+                selected = selected_item[1]
+                settings["active_profile"] = selected.get("profile_key", selected["name"])
+                config.save(settings)
         elif choice.isdigit() and 1 <= int(choice) <= len(profiles):
             selected = profiles[int(choice) - 1]
             settings["active_profile"] = selected.get("profile_key", selected["name"])
             config.save(settings)
+        else:
+            _pause("选项无效，请输入菜单字母、有效编号或按 Enter 返回。")
 
 
 def _install_menu(root: Path, settings: dict[str, Any]) -> None:
@@ -173,27 +205,143 @@ def _install_menu(root: Path, settings: dict[str, Any]) -> None:
     if not versions:
         raise RuntimeError("官方版本清单没有版本。")
     latest = manifest.get("latest", {})
-    console.print(Panel(f"最新正式版  [bold green]{latest.get('release', '?')}[/bold green]    最新快照  [cyan]{latest.get('snapshot', '?')}[/cyan]",
-                        title="官方版本", border_style="cyan"))
-    releases = [v for v in versions if v.get("type") == "release"][:18]
-    table = Table(box=box.SIMPLE_HEAVY, header_style="bold cyan")
-    table.add_column("编号", justify="right", style="dim", no_wrap=True)
-    table.add_column("版本", style="bold")
-    table.add_column("状态")
-    for i, item in enumerate(releases, 1):
-        installed = (root / "versions" / item["id"] / f"{item['id']}.jar").is_file()
-        table.add_row(str(i), item["id"], "[green]已安装[/green]" if installed else "待安装")
-    console.print(table)
-    console.print("输入编号、官方版本 ID，或以 s: 开头选快照（例如 s:25w14a）。Enter 返回。")
-    choice = input("安装版本 > ").strip()
-    if not choice:
-        return
-    if choice.startswith("s:"):
-        version_id = choice[2:].strip()
-    elif choice.isdigit() and 1 <= int(choice) <= len(releases):
-        version_id = releases[int(choice) - 1]["id"]
-    else:
-        version_id = choice
+    releases = [item for item in versions if item.get("type") == "release"]
+    installed_ids = {name for name, _ in launcher.versions(root)}
+    page_size = 18
+    page = 0
+    search = ""
+    status_filter: str | None = None
+    notice = ""
+    selected_index = 0
+    choice_session = prompt_session()
+    if choice_session is None:
+        console.print(
+            "[yellow]未安装 prompt_toolkit：可输入 n/p 翻页；安装 requirements.txt 后可用 PageUp/PageDown。[/yellow]")
+
+    while True:
+        _clear()
+        console.print(Panel(
+            f"最新正式版  [bold green]{latest.get('release', '?')}[/bold green]    最新快照  [cyan]{latest.get('snapshot', '?')}[/cyan]",
+            title="官方版本", border_style="cyan"))
+        visible = [item for item in releases
+                   if search.casefold() in item.get("id", "").casefold()
+                   and (status_filter is None
+                        or (item.get("id") in installed_ids) == (status_filter == "installed"))]
+        page_count = max(1, (len(visible) + page_size - 1) // page_size)
+        page = min(page, page_count - 1)
+        start = page * page_size
+        page_items = visible[start:start + page_size]
+        if page_items:
+            selected_index = min(selected_index, len(page_items) - 1)
+        table = Table(box=box.SIMPLE_HEAVY, header_style="bold cyan")
+        table.add_column("", no_wrap=True)
+        table.add_column("编号", justify="right", style="dim", no_wrap=True)
+        table.add_column("版本", style="bold")
+        table.add_column("状态")
+        for index, item in enumerate(page_items, 1):
+            installed = item.get("id") in installed_ids
+            status = "[green]已安装[/green]" if installed else "待安装"
+            if item.get("id") == latest.get("release"):
+                status += " [cyan]最新[/cyan]"
+            marker = ("[bold green]›[/bold green]"
+                      if choice_session is not None and index - 1 == selected_index else "")
+            table.add_row(marker, str(index), item["id"], status)
+        console.print(table)
+        filter_name = {None: "全部", "installed": "已安装", "available": "未安装"}[status_filter]
+        console.print(
+            f"第 {page + 1}/{page_count} 页 · 共 {len(visible)} 个版本 · 状态：{filter_name}"
+            + (f" · 搜索：{search}" if search else ""))
+        if notice:
+            console.print(f"[yellow]{notice}[/yellow]")
+            notice = ""
+        if choice_session is not None:
+            console.print("操作：↑/↓ 选择 · Enter 安装 · PageUp/PageDown 换页 · Esc 返回")
+        else:
+            console.print("操作：输入编号并按 Enter 安装 · n/p 换页 · Enter 返回")
+        console.print("搜索：/关键词 · installed 或 available 筛选 · all 清除筛选")
+        console.print("其他：s:版本ID 选择快照 · 也可直接输入官方版本 ID")
+        if choice_session is None:
+            choice = input("安装版本 > ").strip()
+        else:
+            choice = choice_session.prompt("安装版本 > ").strip()
+        lowered = choice.casefold()
+        if lowered == "back":
+            return
+        if not choice:
+            if choice_session is None:
+                return
+            if page_items:
+                version_id = page_items[selected_index]["id"]
+                break
+            notice = "当前筛选没有版本可选。"
+            continue
+        if lowered == "move-down":
+            if selected_index + 1 < len(page_items):
+                selected_index += 1
+            elif page + 1 < page_count:
+                page += 1
+                selected_index = 0
+            else:
+                notice = "已经是最后一个版本。"
+            continue
+        if lowered == "move-up":
+            if selected_index > 0:
+                selected_index -= 1
+            elif page > 0:
+                page -= 1
+                selected_index = page_size - 1
+            else:
+                notice = "已经是第一个版本。"
+            continue
+        if lowered in ("n", "next"):
+            if page + 1 < page_count:
+                page += 1
+                selected_index = 0
+            else:
+                notice = "已经是最后一页。"
+            continue
+        if lowered in ("p", "prev"):
+            if page > 0:
+                page -= 1
+                selected_index = 0
+            else:
+                notice = "已经是第一页。"
+            continue
+        if lowered.startswith("/"):
+            search = choice[1:].strip()
+            page = 0
+            selected_index = 0
+            continue
+        if lowered == "installed":
+            status_filter = "installed"
+            page = 0
+            selected_index = 0
+            continue
+        if lowered == "available":
+            status_filter = "available"
+            page = 0
+            selected_index = 0
+            continue
+        if lowered == "all":
+            search = ""
+            status_filter = None
+            page = 0
+            selected_index = 0
+            continue
+
+        if choice.startswith("s:"):
+            version_id = choice[2:].strip()
+        elif choice.isdigit():
+            if not 1 <= int(choice) <= len(page_items):
+                notice = "编号无效；请输入当前页显示的编号。"
+                continue
+            version_id = page_items[int(choice) - 1]["id"]
+        else:
+            version_id = choice
+            if not any(item.get("id") == version_id for item in versions):
+                notice = f"清单中没有版本 {version_id}；可输入 /关键词 搜索。"
+                continue
+        break
 
     console.print(Panel(f"正在安装 [bold]{version_id}[/bold]，下载源：{source_label(source)}（失败时尝试官方源）。",
                         border_style="yellow"))
@@ -218,22 +366,14 @@ def _delete_menu(root: Path) -> None:
         _pause("没有可删除的已安装版本。")
         return
 
-    table = Table(title="已安装版本", box=box.SIMPLE_HEAVY, header_style="bold cyan")
-    table.add_column("编号", justify="right", style="dim", no_wrap=True)
-    table.add_column("版本", style="bold")
-    table.add_column("类型")
-    for index, (name, meta) in enumerate(installed, 1):
-        table.add_row(str(index), name, str(meta.get("type", "custom")))
-    console.print(table)
-
-    selected = input("版本编号 (Enter 返回) > ").strip()
-    if not selected:
+    selected = select_item(
+        installed, title="选择要删除的已安装版本",
+        columns=("版本", "类型"),
+        render=lambda item: (item[0], str(item[1].get("type", "custom"))),
+        console=console, prompt="删除版本 > ")
+    if selected is None:
         return
-    if not selected.isdigit() or not 1 <= int(selected) <= len(installed):
-        _pause("编号无效。")
-        return
-
-    version_id = installed[int(selected) - 1][0]
+    version_id = selected[0]
     confirmation = input(f"确认删除版本 {version_id} 的本地文件？输入 y 确认 (默认取消) > ").strip().lower()
     if confirmation != "y":
         _pause("已取消删除。")
@@ -329,19 +469,11 @@ def main() -> int:
                 if not profile:
                     _pause("请先选择 A 添加或选择账号档案。")
                     continue
-                versions_table = Table(title="可启动版本", box=box.SIMPLE_HEAVY,
-                                       header_style="bold cyan")
-                versions_table.add_column("编号", justify="right", style="dim", no_wrap=True)
-                versions_table.add_column("版本", style="bold")
-                versions_table.add_column("类型")
-                for index, (name, meta) in enumerate(found, 1):
-                    versions_table.add_row(str(index), name, str(meta.get("type", "custom")))
-                console.print(versions_table)
-                selected = input("版本编号 (Enter 返回) > ").strip()
-                if not selected:
-                    continue
-                if not selected.isdigit() or not 1 <= int(selected) <= len(found):
-                    _pause("编号无效。")
+                selected_version = select_item(
+                    found, title="可启动版本", columns=("版本", "类型"),
+                    render=lambda item: (item[0], str(item[1].get("type", "custom"))),
+                    console=console, prompt="启动版本 > ")
+                if selected_version is None:
                     continue
                 memory = int(settings.get("memory_mb", 4096))
                 java = settings.get("java", "")
@@ -349,9 +481,32 @@ def main() -> int:
                     profile,
                     os.environ.get("MC_MICROSOFT_CLIENT_ID") or settings.get("microsoft_client_id"),
                 )
-                status = launcher.launch(root, *found[int(selected) - 1], identity, memory, java,
-                                        settings.get("download_source", OFFICIAL))
+                with Progress(
+                    TextColumn("[progress.description]{task.description}"),
+                    BarColumn(), TaskProgressColumn(), TimeRemainingColumn(),
+                    console=console, transient=True,
+                ) as progress_display:
+                    task = progress_display.add_task("检查游戏运行库", total=1)
+
+                    def report(done: int, total: int, filename: str) -> None:
+                        progress_display.update(
+                            task, total=max(total, 1), completed=done,
+                            description=filename)
+
+                    def libraries_ready() -> None:
+                        progress_display.update(
+                            task, total=1, completed=1, description="运行库已就绪")
+                        progress_display.stop()
+
+                    status = launcher.launch(
+                        root, *selected_version, identity, memory, java,
+                        settings.get("download_source", OFFICIAL),
+                        progress_callback=report,
+                        on_libraries_ready=libraries_ready,
+                    )
                 _pause(f"Minecraft 已退出，状态码 {status}。")
+            else:
+                _pause("选项无效，请选择 L、I、D、A、S 或 Q。")
         except (OSError, ValueError, RuntimeError, KeyError, zipfile.BadZipFile) as exc:
             _pause(f"操作失败：{exc}")
         except KeyboardInterrupt:

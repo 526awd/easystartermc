@@ -6,7 +6,7 @@ import subprocess
 import sys
 import zipfile
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from .installer import ensure_libraries
 from .download_sources import OFFICIAL, label as source_label
@@ -151,16 +151,24 @@ def build_command(root: Path, version: str, metadata: dict[str, Any], identity: 
 
 
 def launch(root: Path, version: str, metadata: dict[str, Any], identity: dict[str, str],
-           memory_mb: int, java_path: str = "", source: str = OFFICIAL) -> int:
-    print(f"检查游戏运行库；下载源：{source_label(source)}，镜像失败时会尝试官方源。")
+           memory_mb: int, java_path: str = "", source: str = OFFICIAL,
+           progress_callback: Callable[[int, int, str], None] | None = None,
+           on_libraries_ready: Callable[[], None] | None = None) -> int:
+    if progress_callback is None:
+        print(f"检查游戏运行库；下载源：{source_label(source)}，镜像失败时会尝试官方源。")
     java_path, java_major = select_java(version, metadata, java_path)
     print(f"为 Minecraft {version} 选择 Java {java_major}：{java_path}")
 
-    def progress(done: int, total: int, filename: str) -> None:
+    def terminal_progress(done: int, total: int, filename: str) -> None:
         print(f"\r运行库检查 {done}/{total}  {filename[:48]:48}", end="", flush=True)
 
-    ensure_libraries(root, metadata, progress, source)
-    print(file=sys.stdout)
+    if progress_callback:
+        progress_callback(0, 1, "检查游戏运行库")
+    ensure_libraries(root, metadata, progress_callback or terminal_progress, source)
+    if progress_callback is None:
+        print(file=sys.stdout)
+    if on_libraries_ready:
+        on_libraries_ready()
     command, cwd = build_command(root, version, metadata, identity, memory_mb, java_path)
     print("\n启动游戏；日志会显示在此终端。按 Ctrl+C 可结束进程。\n")
     return subprocess.call(command, cwd=root)
