@@ -1,6 +1,7 @@
 """Interactive terminal menus for accounts, installation, settings and launch."""
 import sys
 import zipfile
+import os
 from pathlib import Path
 from typing import Any
 
@@ -31,9 +32,11 @@ def accounts_menu(settings: dict[str, Any]) -> None:
             print("尚无账号档案。")
         for index, profile in enumerate(profiles, 1):
             marker = "★" if profile.get("name") == active else " "
-            kind = "离线" if profile.get("type") == "offline" else "Microsoft 令牌环境变量"
+            kind = "离线" if profile.get("type") == "offline" else (
+                "Microsoft OAuth" if profile.get("client_id") else "Microsoft 手动令牌"
+            )
             print(f"{index}. {marker} {profile.get('name')} ({kind})")
-        print("\n[A] 添加离线档案  [M] 添加 Microsoft 档案  [数字] 设为当前  [D] 删除  [Enter] 返回")
+        print("\n[A] 添加离线档案  [O] Microsoft OAuth 登录  [M] 手动档案  [数字] 设为当前  [D] 删除  [Enter] 返回")
         choice = input("> ").strip().lower()
         if not choice:
             return
@@ -48,6 +51,26 @@ def accounts_menu(settings: dict[str, Any]) -> None:
                 _pause()
             except ValueError as exc:
                 _pause(str(exc))
+        elif choice == "o":
+            try:
+                from . import auth_microsoft
+                client_id = (os.environ.get("MC_MICROSOFT_CLIENT_ID")
+                             or settings.get("microsoft_client_id")
+                             or auth_microsoft.OFFICIAL_CLIENT_ID)
+                print("\n正在开始 Microsoft OAuth 登录。")
+                profile = auth_microsoft.sign_in(
+                    client_id,
+                    lambda message: print("\n" + message + "\n", flush=True),
+                    lambda: input("粘贴完整重定向 URL > "),
+                )
+                profiles[:] = [item for item in profiles
+                               if item.get("uuid", "").replace("-", "").lower() != profile["uuid"].replace("-", "").lower()]
+                profiles.append(profile)
+                settings["active_profile"] = profile["name"]
+                config.save(settings)
+                _pause(f"已登录 Minecraft 档案：{profile['name']}。")
+            except (OSError, ValueError, RuntimeError) as exc:
+                _pause(f"登录失败：{exc}")
         elif choice == "m":
             name = input("正版玩家名 > ").strip()
             player_uuid = input("正版 UUID > ").strip()
@@ -66,6 +89,12 @@ def accounts_menu(settings: dict[str, Any]) -> None:
             index = input("要删除的编号 > ").strip()
             if index.isdigit() and 1 <= int(index) <= len(profiles):
                 removed = profiles.pop(int(index) - 1)
+                if removed.get("type") == "microsoft" and removed.get("client_id"):
+                    try:
+                        from .auth_microsoft import remove_account
+                        remove_account(removed)
+                    except (OSError, RuntimeError) as exc:
+                        print(f"已删除档案；凭据缓存清理失败：{exc}")
                 if settings.get("active_profile") == removed.get("name"):
                     settings["active_profile"] = profiles[0]["name"] if profiles else ""
                 config.save(settings)
@@ -118,6 +147,11 @@ def _settings_menu(settings: dict[str, Any]) -> None:
     value = input("> ").strip()
     if value:
         settings["java"] = value
+    from .auth_microsoft import OFFICIAL_CLIENT_ID
+    print(f"Microsoft OAuth Client ID [{settings.get('microsoft_client_id', OFFICIAL_CLIENT_ID)}]")
+    value = input("(留空使用官方 Minecraft Launcher ID) > ").strip()
+    if value:
+        settings["microsoft_client_id"] = value
     try:
         current = int(settings.get("memory_mb", 4096))
         value = input(f"最大内存 MiB [{current}] > ").strip()
@@ -179,7 +213,10 @@ def main() -> int:
                     continue
                 memory = int(settings.get("memory_mb", 4096))
                 java = settings.get("java", "")
-                identity = accounts.launch_identity(profile)
+                identity = accounts.launch_identity(
+                    profile,
+                    os.environ.get("MC_MICROSOFT_CLIENT_ID") or settings.get("microsoft_client_id"),
+                )
                 status = launcher.launch(root, *found[int(selected) - 1], identity, memory, java)
                 _pause(f"Minecraft 已退出，状态码 {status}。")
         except (OSError, ValueError, RuntimeError, KeyError, zipfile.BadZipFile) as exc:

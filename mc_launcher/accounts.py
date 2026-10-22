@@ -1,5 +1,4 @@
 """Offline profiles and environment-provided official account credentials."""
-import os
 import hashlib
 import re
 import uuid
@@ -36,14 +35,16 @@ def current_profile(config: dict[str, Any]) -> dict[str, Any]:
     return {}
 
 
-def launch_identity(profile: dict[str, Any]) -> dict[str, str]:
+def launch_identity(profile: dict[str, Any], client_id: str | None = None) -> dict[str, str]:
     if profile.get("type") == "offline":
         return {"name": profile["name"], "uuid": profile["uuid"].replace("-", ""),
                 "token": "0", "user_type": "legacy"}
+    if profile.get("type") == "microsoft" and profile.get("client_id"):
+        from .auth_microsoft import OFFICIAL_CLIENT_ID, minecraft_identity
+        return minecraft_identity(profile, profile.get("client_id") or client_id or OFFICIAL_CLIENT_ID)
+    # Compatibility for profiles created before OAuth support.
+    import os
     token = os.environ.get("MC_ACCESS_TOKEN", "")
-    if not token:
-        raise RuntimeError("微软账号尚未配置：请设置 MC_ACCESS_TOKEN 环境变量。")
-    if not profile.get("uuid"):
-        raise RuntimeError("当前正版账号缺少 UUID。")
-    return {"name": profile["name"], "uuid": profile["uuid"].replace("-", ""),
-            "token": token, "user_type": "msa"}
+    if not token or not profile.get("uuid"):
+        raise RuntimeError("此账号没有 Microsoft OAuth 会话。请在账号菜单选择 Microsoft OAuth 登录。")
+    return {"name": profile["name"], "uuid": profile["uuid"].replace("-", ""), "token": token, "user_type": "msa"}
