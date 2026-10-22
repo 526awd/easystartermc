@@ -13,6 +13,10 @@ python .\mc_tui.py
 
 从主菜单选择 **I 安装官方版本**，下载版本清单中的正式版，或输入版本 ID/快照 ID；安装器会获取客户端 JAR、运行库、资源索引和资源文件，并按官方元数据校验 SHA-1。单个下载失败会自动重试 3 次。启动时也会检查运行库，发现缺失或校验失败的依赖会尝试重新下载。然后在 **A 账号档案** 创建离线档案或登录 Microsoft 账号，再选择 **L 启动游戏**。
 
+## 跨平台发行包
+
+GitHub Actions 会在推送、Pull Request 或手动触发时并行构建 Windows、Linux，以及 macOS Intel 和 Apple Silicon 版本。构建产物会包含运行所需的 DLL/动态库：Windows 下载 ZIP，Linux 下载 tar.gz，macOS 下载 `.pkg` 安装包。在仓库的 **Actions** 页面打开 **Build desktop packages** 运行，从 **Artifacts** 下载对应平台的产物。Windows 和 Linux 解压后运行 `easystartermc`；macOS 安装后可在终端运行 `easystartermc`。macOS 安装包未签名，首次安装可能需要在系统提示中手动确认。Windows/Linux 配置保存在程序目录，macOS 配置保存在 `~/Library/Application Support/MC TUI/launcher.json`。
+
 ## 账号
 
 离线档案只需输入 1–16 位英文、数字或下划线玩家名。UUID 按 `OfflinePlayer:<玩家名>` 规则生成。离线档案适合单人游戏及允许离线玩家的服务器；需要正版验证的服务器不会接受离线档案。

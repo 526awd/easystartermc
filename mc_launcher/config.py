@@ -2,10 +2,15 @@
 import json
 import os
 import platform
+import sys
 from pathlib import Path
 from typing import Any
 
-APP_DIR = Path(__file__).resolve().parent.parent
+if getattr(sys, "frozen", False) and platform.system() == "Darwin":
+    APP_DIR = Path.home() / "Library" / "Application Support" / "MC TUI"
+else:
+    APP_DIR = (Path(sys.executable).resolve().parent if getattr(sys, "frozen", False)
+               else Path(__file__).resolve().parent.parent)
 CONFIG_PATH = APP_DIR / "launcher.json"
 
 
@@ -28,6 +33,7 @@ def load() -> dict[str, Any]:
 
 
 def save(config: dict[str, Any]) -> None:
+    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
     CONFIG_PATH.write_text(json.dumps(config, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
