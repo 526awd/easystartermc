@@ -124,6 +124,14 @@ def build_command(root: Path, version: str, metadata: dict[str, Any], identity: 
     }
     jvm_args: list[str] = []
     game_args: list[str] = []
+    if identity.get("auth_server"):
+        from .auth_yggdrasil import ensure_injector, prefetched_metadata
+        auth_server = identity["auth_server"]
+        injector = ensure_injector(root)
+        jvm_args.extend([
+            f"-javaagent:{injector.resolve()}={auth_server}",
+            f"-Dauthlibinjector.yggdrasil.prefetched={prefetched_metadata(auth_server)}",
+        ])
     arguments = metadata.get("arguments")
     if isinstance(arguments, dict):
         for item in arguments.get("jvm", []):

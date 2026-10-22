@@ -1,6 +1,7 @@
 """Interactive terminal menus for accounts, installation, settings and launch."""
 import zipfile
 import os
+import getpass
 from pathlib import Path
 from typing import Any
 
@@ -43,14 +44,15 @@ def accounts_menu(settings: dict[str, Any]) -> None:
         table.add_column("玩家", style="bold")
         table.add_column("类型")
         for index, profile in enumerate(profiles, 1):
-            marker = "★" if profile.get("name") == active else " "
+            marker = "★" if profile.get("profile_key", profile.get("name")) == active else " "
             kind = "离线" if profile.get("type") == "offline" else (
+                f"第三方 ({profile.get('auth_server', '')})" if profile.get("type") == "yggdrasil" else
                 "Microsoft OAuth" if profile.get("client_id") else "Microsoft 手动令牌"
             )
             table.add_row(str(index), marker, str(profile.get("name", "")), kind)
         if profiles:
             console.print(table)
-        console.print(Panel("[A] 添加离线档案   [O] Microsoft 登录   [M] 手动档案\n[数字] 设为当前   [D] 删除   [Enter] 返回",
+        console.print(Panel("[A] 添加离线档案   [O] Microsoft 登录   [Y] 第三方登录   [M] 手动档案\n[数字] 设为当前   [D] 删除   [Enter] 返回",
                             border_style="blue", padding=(0, 1)))
         choice = input("> ").strip().lower()
         if not choice:
@@ -60,7 +62,7 @@ def accounts_menu(settings: dict[str, Any]) -> None:
                 profile = accounts.offline_profile(input("离线玩家名 > "))
                 profiles[:] = [item for item in profiles if item.get("name") != profile["name"]]
                 profiles.append(profile)
-                settings["active_profile"] = profile["name"]
+                settings["active_profile"] = profile.get("profile_key", profile["name"])
                 config.save(settings)
                 print(f"已添加离线账号 {profile['name']}（{profile['uuid']}）。")
                 _pause()
@@ -81,9 +83,41 @@ def accounts_menu(settings: dict[str, Any]) -> None:
                 profiles[:] = [item for item in profiles
                                if item.get("uuid", "").replace("-", "").lower() != profile["uuid"].replace("-", "").lower()]
                 profiles.append(profile)
-                settings["active_profile"] = profile["name"]
+                settings["active_profile"] = profile.get("profile_key", profile["name"])
                 config.save(settings)
                 _pause(f"已登录 Minecraft 档案：{profile['name']}。")
+            except (OSError, ValueError, RuntimeError) as exc:
+                _pause(f"登录失败：{exc}")
+        elif choice == "y":
+            try:
+                from . import auth_yggdrasil
+                server = input("Yggdrasil 认证服务器 API 地址 (例如 https://example.com/api/yggdrasil/) > ").strip()
+                username = input("账号 > ").strip()
+                password = getpass.getpass("密码（不会保存）> ")
+
+                def choose_profile(available: list[dict[str, Any]]) -> dict[str, Any]:
+                    options = Table(title="选择游戏档案", box=box.SIMPLE_HEAVY)
+                    options.add_column("编号", justify="right")
+                    options.add_column("玩家名")
+                    options.add_column("UUID")
+                    for number, item in enumerate(available, 1):
+                        options.add_row(str(number), str(item.get("name", "")), str(item.get("id", "")))
+                    console.print(options)
+                    answer = input("档案编号 > ").strip()
+                    if not answer.isdigit() or not 1 <= int(answer) <= len(available):
+                        raise ValueError("档案编号无效。")
+                    return available[int(answer) - 1]
+
+                profile = auth_yggdrasil.sign_in(server, username, password, choose_profile)
+                profiles[:] = [item for item in profiles if not (
+                    item.get("type") == "yggdrasil"
+                    and item.get("auth_server") == profile["auth_server"]
+                    and item.get("uuid", "").replace("-", "").lower() == profile["uuid"].lower()
+                )]
+                profiles.append(profile)
+                settings["active_profile"] = profile.get("profile_key", profile["name"])
+                config.save(settings)
+                _pause(f"已登录第三方账号：{profile['name']}。")
             except (OSError, ValueError, RuntimeError) as exc:
                 _pause(f"登录失败：{exc}")
         elif choice == "m":
@@ -95,7 +129,7 @@ def accounts_menu(settings: dict[str, Any]) -> None:
             profile = {"name": name, "uuid": player_uuid, "type": "microsoft"}
             profiles[:] = [item for item in profiles if item.get("name") != name]
             profiles.append(profile)
-            settings["active_profile"] = name
+            settings["active_profile"] = profile.get("profile_key", name)
             config.save(settings)
             _pause("已保存。令牌仍需通过 MC_ACCESS_TOKEN 环境变量提供。")
         elif choice == "d":
@@ -110,11 +144,19 @@ def accounts_menu(settings: dict[str, Any]) -> None:
                         remove_account(removed)
                     except (OSError, RuntimeError) as exc:
                         print(f"已删除档案；凭据缓存清理失败：{exc}")
-                if settings.get("active_profile") == removed.get("name"):
-                    settings["active_profile"] = profiles[0]["name"] if profiles else ""
+                elif removed.get("type") == "yggdrasil":
+                    try:
+                        from .auth_yggdrasil import remove_account
+                        remove_account(removed)
+                    except (OSError, RuntimeError, ValueError) as exc:
+                        print(f"已删除档案；凭据缓存清理失败：{exc}")
+                if settings.get("active_profile") in (removed.get("profile_key"), removed.get("name")):
+                    settings["active_profile"] = (profiles[0].get("profile_key", profiles[0]["name"])
+                                                   if profiles else "")
                 config.save(settings)
         elif choice.isdigit() and 1 <= int(choice) <= len(profiles):
-            settings["active_profile"] = profiles[int(choice) - 1]["name"]
+            selected = profiles[int(choice) - 1]
+            settings["active_profile"] = selected.get("profile_key", selected["name"])
             config.save(settings)
 
 
@@ -203,7 +245,8 @@ def main() -> int:
         root = config.game_dir(settings)
         profile = accounts.current_profile(settings)
         found = launcher.versions(root)
-        kind = "离线" if profile.get("type") == "offline" else "Microsoft"
+        kind = ("离线" if profile.get("type") == "offline" else
+                "第三方" if profile.get("type") == "yggdrasil" else "Microsoft")
         details = Table.grid(padding=(0, 2))
         details.add_column(style="dim")
         details.add_column(style="bold")

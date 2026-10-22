@@ -21,10 +21,10 @@ def current_profile(config: dict[str, Any]) -> dict[str, Any]:
     profiles = config.get("profiles", [])
     active = config.get("active_profile", "")
     for profile in profiles:
-        if profile.get("name") == active:
+        if profile.get("profile_key", profile.get("name")) == active:
             return profile
     if profiles:
-        config["active_profile"] = profiles[0].get("name", "")
+        config["active_profile"] = profiles[0].get("profile_key", profiles[0].get("name", ""))
         return profiles[0]
     # Migrate the earlier single-profile settings on first launch.
     if config.get("username"):
@@ -42,6 +42,9 @@ def launch_identity(profile: dict[str, Any], client_id: str | None = None) -> di
     if profile.get("type") == "microsoft" and profile.get("client_id"):
         from .auth_microsoft import OFFICIAL_CLIENT_ID, minecraft_identity
         return minecraft_identity(profile, profile.get("client_id") or client_id or OFFICIAL_CLIENT_ID)
+    if profile.get("type") == "yggdrasil":
+        from .auth_yggdrasil import minecraft_identity
+        return minecraft_identity(profile)
     # Compatibility for profiles created before OAuth support.
     import os
     token = os.environ.get("MC_ACCESS_TOKEN", "")
