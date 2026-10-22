@@ -12,6 +12,7 @@ from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn, T
 from rich.table import Table
 
 from . import accounts, config, installer, launcher, metadata
+from .download_sources import BMCLAPI, OFFICIAL, label as source_label
 
 console = Console(highlight=False)
 
@@ -160,9 +161,14 @@ def accounts_menu(settings: dict[str, Any]) -> None:
             config.save(settings)
 
 
-def _install_menu(root: Path) -> None:
-    console.print(Panel("正在读取 Mojang 官方版本清单…", border_style="cyan"))
-    manifest = metadata.version_list()
+def _install_menu(root: Path, settings: dict[str, Any]) -> None:
+    source = settings.get("download_source", OFFICIAL)
+    if source not in (OFFICIAL, BMCLAPI):
+        source = OFFICIAL
+    console.print(Panel(
+        f"正在读取 {source_label(source)} 版本清单。镜像不可用或文件缺失时会回退到官方源。",
+        border_style="cyan"))
+    manifest = metadata.version_list(source)
     versions = manifest.get("versions", [])
     if not versions:
         raise RuntimeError("官方版本清单没有版本。")
@@ -189,7 +195,7 @@ def _install_menu(root: Path) -> None:
     else:
         version_id = choice
 
-    console.print(Panel(f"正在安装 [bold]{version_id}[/bold]，文件来自 Mojang 官方清单和下载服务器。",
+    console.print(Panel(f"正在安装 [bold]{version_id}[/bold]，下载源：{source_label(source)}（失败时尝试官方源）。",
                         border_style="yellow"))
     with Progress(
         TextColumn("[progress.description]{task.description}"),
@@ -202,7 +208,7 @@ def _install_menu(root: Path) -> None:
             progress_display.update(task, total=max(total, 1), completed=done,
                                     description=filename)
 
-        installer.install(root, version_id, manifest, report)
+        installer.install(root, version_id, manifest, report, source=source)
     console.print(Panel(f"版本 {version_id} 安装完成。", border_style="green"))
 
 
@@ -216,6 +222,15 @@ def _settings_menu(settings: dict[str, Any]) -> None:
     value = input("> ").strip()
     if value:
         settings["java"] = value
+    current_source = settings.get("download_source", OFFICIAL)
+    if current_source not in (OFFICIAL, BMCLAPI):
+        current_source = OFFICIAL
+    print(f"下载源 [1] Mojang 官方源  [2] BMCLAPI 国内镜像 [{source_label(current_source)}]")
+    value = input("选择 (Enter 保持当前) > ").strip().lower()
+    if value in ("1", "official"):
+        settings["download_source"] = OFFICIAL
+    elif value in ("2", "bmclapi"):
+        settings["download_source"] = BMCLAPI
     from .auth_microsoft import OFFICIAL_CLIENT_ID
     print(f"Microsoft OAuth Client ID [{settings.get('microsoft_client_id', OFFICIAL_CLIENT_ID)}]")
     value = input("(留空使用官方 Minecraft Launcher ID) > ").strip()
@@ -251,11 +266,12 @@ def main() -> int:
         details.add_column(style="dim")
         details.add_column(style="bold")
         details.add_row("游戏目录", str(root))
+        details.add_row("下载源", source_label(settings.get("download_source", OFFICIAL)))
         details.add_row("当前账号", f"{profile.get('name', '未设置')} ({kind if profile else '无'})")
         details.add_row("已安装", f"{len(found)} 个版本")
         console.print(Panel(details, title="[bold green]MC TUI · Java 启动器[/bold green]",
                             border_style="green", box=box.DOUBLE))
-        console.print(Panel("[bold green]L[/bold green] 启动游戏   [bold cyan]I[/bold cyan] 安装官方版本   [bold yellow]A[/bold yellow] 账号档案   [bold blue]S[/bold blue] 设置   [bold red]Q[/bold red] 退出",
+        console.print(Panel("[bold green]L[/bold green] 启动游戏   [bold cyan]I[/bold cyan] 安装版本   [bold yellow]A[/bold yellow] 账号档案   [bold blue]S[/bold blue] 设置   [bold red]Q[/bold red] 退出",
                             border_style="green", padding=(0, 1)))
         choice = input("\n选择 > ").strip().lower()
         try:
@@ -266,7 +282,7 @@ def main() -> int:
             elif choice == "s":
                 _settings_menu(settings)
             elif choice == "i":
-                _install_menu(root)
+                _install_menu(root, settings)
                 _pause()
             elif choice == "l":
                 if not found:
@@ -295,7 +311,8 @@ def main() -> int:
                     profile,
                     os.environ.get("MC_MICROSOFT_CLIENT_ID") or settings.get("microsoft_client_id"),
                 )
-                status = launcher.launch(root, *found[int(selected) - 1], identity, memory, java)
+                status = launcher.launch(root, *found[int(selected) - 1], identity, memory, java,
+                                        settings.get("download_source", OFFICIAL))
                 _pause(f"Minecraft 已退出，状态码 {status}。")
         except (OSError, ValueError, RuntimeError, KeyError, zipfile.BadZipFile) as exc:
             _pause(f"操作失败：{exc}")

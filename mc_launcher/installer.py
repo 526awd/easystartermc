@@ -6,6 +6,7 @@ import shutil
 from pathlib import Path, PurePosixPath
 from typing import Any, Callable
 
+from .download_sources import OFFICIAL
 from .downloader import download_many
 from .metadata import version_metadata
 from .platforms import allowed, native_artifact
@@ -60,16 +61,18 @@ def _library_jobs(metadata: dict[str, Any], root: Path) -> list[tuple[str, Path,
 
 
 def ensure_libraries(root: Path, metadata: dict[str, Any],
-                     progress: InstallProgress | None = None) -> None:
+                     progress: InstallProgress | None = None,
+                     source: str = OFFICIAL) -> None:
     """Download any absent or hash-invalid runtime libraries for an installed version."""
     jobs = _library_jobs(metadata, root)
-    download_many(jobs, progress)
+    download_many(jobs, progress, source=source)
 
 
 def install(root: Path, version_id: str, manifest: dict[str, Any],
-            progress: InstallProgress | None = None) -> dict[str, Any]:
+            progress: InstallProgress | None = None,
+            source: str = OFFICIAL) -> dict[str, Any]:
     root.mkdir(parents=True, exist_ok=True)
-    metadata = version_metadata(manifest, version_id)
+    metadata = version_metadata(manifest, version_id, source)
     version_dir = root / "versions" / version_id
     version_dir.mkdir(parents=True, exist_ok=True)
     metadata_path = version_dir / f"{version_id}.json"
@@ -86,7 +89,8 @@ def install(root: Path, version_id: str, manifest: dict[str, Any],
     asset_index: dict[str, Any] | None = None
     if asset_index_info:
         index_path = root / "assets" / "indexes" / safe_relative(asset_index_info["id"] + ".json")
-        download_many([(asset_index_info["url"], index_path, asset_index_info.get("sha1"), asset_index_info.get("size"))])
+        download_many([(asset_index_info["url"], index_path, asset_index_info.get("sha1"), asset_index_info.get("size"))],
+                      source=source)
         asset_index = json.loads(index_path.read_text(encoding="utf-8"))
         for item in asset_index.get("objects", {}).values():
             digest = item["hash"]
@@ -102,7 +106,7 @@ def install(root: Path, version_id: str, manifest: dict[str, Any],
         if progress:
             progress(done, total, filename)
 
-    download_many(jobs, report)
+    download_many(jobs, report, source=source)
     if asset_index and asset_index.get("map_to_resources"):
         virtual = root / "assets" / "virtual" / safe_relative(asset_index_info["id"])
         for logical_name, item in asset_index["objects"].items():

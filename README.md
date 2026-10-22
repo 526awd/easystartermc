@@ -22,11 +22,15 @@ Windows ZIP 和 Linux 压缩包需要完整解压后运行，不能只复制主�
 ## 首次启动
 
 1. 确认已安装与目标 Minecraft 版本兼容的 Java。启动器找不到 Java 时，在主菜单选择 **S 设置**，填写 Java 可执行文件路径；也可以配置 `JAVA_HOME`。
-2. 选择 **I 安装官方版本**，从清单中选取版本。启动器会从官方元数据下载客户端、运行库和游戏资源，并校验下载文件。首次安装需要网络和足够的磁盘空间。
+2. 选择 **I 安装版本**，从清单中选取版本。启动器会从所选下载源获取版本元数据、客户端、运行库和游戏资源，并校验下载文件。首次安装需要网络和足够的磁盘空间。
 3. 选择 **A 账号档案**，添加离线账号、登录 Microsoft，或登录 Yggdrasil 第三方认证服务器。
 4. 返回主菜单，选择 **L 启动游戏**，再选已安装的版本。
 
 启动游戏时会检查运行库；缺失或校验失败的文件会尝试重新下载，单个文件最多重试 3 次。
+
+### 下载源
+
+在 **S 设置** 中可选择 **Mojang 官方源** 或 **BMCLAPI 国内镜像**。默认使用 Mojang 官方源；选择 BMCLAPI 后，版本清单、版本元数据、游戏资源和 Minecraft Maven 库会优先从镜像获取。镜像请求失败或文件校验不通过时，启动器会重试并回退到官方 URL；下载文件仍按元数据中的 SHA-1 和文件大小校验。安装界面会显示当前所用来源。BMCLAPI 是社区镜像服务，详见 [BMCLAPI 文档](https://bmclapidoc.bangbang93.com/)。
 
 ## 账号
 
@@ -90,6 +94,7 @@ git push origin v1.2
 - `accounts.py`：账号档案与启动身份
 - `auth_microsoft.py`：Microsoft OAuth、PKCE、Xbox/XSTS/Minecraft 换票
 - `auth_yggdrasil.py`：Yggdrasil 登录、令牌管理与 authlib-injector
+- `download_sources.py`：官方源与 BMCLAPI 镜像地址映射
 - `metadata.py`：Mojang 官方版本清单
 - `downloader.py`：并发下载、文件校验与原子写入
 - `installer.py`：客户端、依赖库和游戏资源安装

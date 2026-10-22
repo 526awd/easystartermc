@@ -8,6 +8,7 @@ from pathlib import Path
 from urllib.request import Request, urlopen
 from typing import Any, Callable
 
+from .download_sources import OFFICIAL, candidates
 from .metadata import USER_AGENT
 
 Progress = Callable[[int, int, str], None]
@@ -28,19 +29,21 @@ def valid_file(path: Path, sha1: str | None, size: int | None = None) -> bool:
 
 
 def download_one(url: str, destination: Path, sha1: str | None = None,
-                 size: int | None = None, retries: int = 3) -> bool:
+                 size: int | None = None, retries: int = 3,
+                 source: str = OFFICIAL) -> bool:
     destination.parent.mkdir(parents=True, exist_ok=True)
     if valid_file(destination, sha1, size):
         return False
     last_error: Exception | None = None
-    for attempt in range(retries + 1):
-        try:
-            return _download_attempt(url, destination, sha1, size)
-        except Exception as exc:
-            last_error = exc
-            if attempt < retries:
-                time.sleep(min(2 ** attempt, 8))
-    raise RuntimeError(f"下载重试 {retries} 次后仍失败：{url} ({last_error})") from last_error
+    for candidate in candidates(url, source):
+        for attempt in range(retries + 1):
+            try:
+                return _download_attempt(candidate, destination, sha1, size)
+            except Exception as exc:
+                last_error = exc
+                if attempt < retries:
+                    time.sleep(min(2 ** attempt, 8))
+    raise RuntimeError(f"已尝试所选下载源及官方源，重试后仍失败：{url} ({last_error})") from last_error
 
 
 def _download_attempt(url: str, destination: Path, sha1: str | None,
@@ -73,13 +76,14 @@ def _download_attempt(url: str, destination: Path, sha1: str | None,
 
 
 def download_many(jobs: list[tuple[str, Path, str | None, int | None]],
-                  progress: Progress | None = None, workers: int = 12) -> None:
+                  progress: Progress | None = None, workers: int = 12,
+                  source: str = OFFICIAL) -> None:
     total = len(jobs)
     if total == 0:
         return
     errors: list[Exception] = []
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        futures = {pool.submit(download_one, *job): job[1] for job in jobs}
+        futures = {pool.submit(download_one, *job, source=source): job[1] for job in jobs}
         for done, future in enumerate(as_completed(futures), 1):
             try:
                 future.result()
