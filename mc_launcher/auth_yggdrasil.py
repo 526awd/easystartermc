@@ -122,7 +122,8 @@ def _endpoint(server: str, path: str) -> str:
 
 
 def _profile_id(profile: dict[str, Any]) -> str:
-    value = str(profile.get("id", "")).replace("-", "")
+    # Authentication responses use `id`; launcher profile records use `uuid`.
+    value = str(profile.get("id") or profile.get("uuid", "")).replace("-", "")
     if not re.fullmatch(r"[0-9a-fA-F]{32}", value):
         raise RuntimeError("Yggdrasil 服务返回了无效的 Minecraft UUID。")
     return value.lower()
