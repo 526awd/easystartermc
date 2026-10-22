@@ -8,10 +8,10 @@
 
 | 系统 | 下载文件 | 安装与启动 |
 | --- | --- | --- |
-| Windows x64 | `easystartermc-windows-x64.zip` | 解压整个 ZIP 文件夹，然后运行 `easystartermc.exe`。请保留同目录中的 DLL 和其他文件。 |
-| Linux x64 | `easystartermc-linux-x64.tar.gz` | 解压后进入 `easystartermc` 文件夹，在终端运行 `./easystartermc`。若提示没有执行权限，运行 `chmod +x easystartermc` 后再启动。该程序包在 Ubuntu 22.04 上构建。 |
-| macOS Intel | `easystartermc-macos-x64.pkg` | 下载并打开 PKG，按安装器提示完成安装，然后在终端运行 `easystartermc`。 |
-| macOS Apple Silicon | `easystartermc-macos-arm64.pkg` | 下载并打开 PKG，按安装器提示完成安装，然后在终端运行 `easystartermc`。 |
+| Windows x64 | `easystartermc-windows-x64.zip`[https://github.com/526awd/easystartermc/releases/download/latest/easystartermc-windows-x64.zip] | 解压整个 ZIP 文件夹，然后运行 `easystartermc.exe`。请保留同目录中的 DLL 和其他文件。 |
+| Linux x64 | `easystartermc-linux-x64.tar.gz`[https://github.com/526awd/easystartermc/releases/download/latest/easystartermc-linux-x64.tar.gz] | 解压后进入 `easystartermc` 文件夹，在终端运行 `./easystartermc`。若提示没有执行权限，运行 `chmod +x easystartermc` 后再启动。该程序包在 Ubuntu 22.04 上构建。 |
+| macOS Intel | `easystartermc-macos-x64.pkg`[https://github.com/526awd/easystartermc/releases/download/latest/easystartermc-macos-x64.pkg] | 下载并打开 PKG，按安装器提示完成安装，然后在终端运行 `easystartermc`。 |
+| macOS Apple Silicon | `easystartermc-macos-arm64.pkg`[https://github.com/526awd/easystartermc/releases/download/latest/easystartermc-macos-arm64.pkg] | 下载并打开 PKG，按安装器提示完成安装，然后在终端运行 `easystartermc`。 |
 
 Windows ZIP 和 Linux 压缩包需要完整解压后运行，不能只复制主程序文件。macOS 安装器会将文件安装到 `/usr/local/lib/easystartermc`，并在 `/usr/local/bin` 创建启动命令。
 
