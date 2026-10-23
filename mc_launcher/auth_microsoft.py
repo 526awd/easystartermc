@@ -244,7 +244,7 @@ def _minecraft_exchange(ms_access_token: str, legacy_client: bool = False) -> tu
         raise RuntimeError("Minecraft Services 没有返回 accessToken。")
     profile = _request_json(MINECRAFT_PROFILE_URL, bearer=access_token)
     if not profile.get("id") or not profile.get("name"):
-        raise RuntimeError("该 Microsoft 账号没有可用的 Minecraft Java 档案或游戏权限。")
+        raise RuntimeError("该 Microsoft 账号没有可用的 Minecraft Java 档案或游戏权限,你很可能没有购买我的世界正版。")
     return profile, access_token
 
 
