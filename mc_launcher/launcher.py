@@ -10,7 +10,7 @@ from typing import Any, Callable
 
 from .installer import ensure_libraries
 from .download_sources import OFFICIAL, label as source_label
-from .java_runtime import select_java
+from .java_runtime import major_version, required_major, resolve_java, select_java
 from .platforms import allowed, native_artifact
 
 
@@ -76,7 +76,18 @@ def _extract_natives(root: Path, version: str, metadata: dict[str, Any]) -> Path
 
 def build_command(root: Path, version: str, metadata: dict[str, Any], identity: dict[str, str],
                   memory_mb: int, java_path: str = "") -> tuple[list[str], Path]:
-    java_path, _ = select_java(version, metadata, java_path)
+    if java_path:
+        selected_path = Path(java_path).resolve()
+        selected_major = major_version(selected_path)
+        required = required_major(version, metadata)
+        if selected_major is None or selected_major < required:
+            raise RuntimeError(
+                f"Java 可执行文件版本不符合要求：{selected_path}（需要 Java {required}，"
+                f"检测到 {selected_major or '未知'}）。"
+            )
+        java_path = str(selected_path)
+    else:
+        java_path, _ = select_java(version, metadata)
     version_dir = root / "versions" / version
     jar_id = metadata.get("jar", version)
     client = root / "versions" / jar_id / f"{jar_id}.jar"
@@ -155,12 +166,17 @@ def launch(root: Path, version: str, metadata: dict[str, Any], identity: dict[st
            progress_callback: Callable[[int, int, str], None] | None = None,
            on_libraries_ready: Callable[[], None] | None = None) -> int:
     if progress_callback is None:
-        print(f"检查游戏运行库；下载源：{source_label(source)}，镜像失败时会尝试官方源。")
-    java_path, java_major = select_java(version, metadata, java_path)
-    print(f"为 Minecraft {version} 选择 Java {java_major}：{java_path}")
+        print(f"检查 Java 环境和游戏运行库；下载源：{source_label(source)}，镜像失败时会尝试官方源。")
 
     def terminal_progress(done: int, total: int, filename: str) -> None:
-        print(f"\r运行库检查 {done}/{total}  {filename[:48]:48}", end="", flush=True)
+        print(f"\r{filename[:48]:48} {done}/{total}", end="", flush=True)
+
+    if progress_callback:
+        progress_callback(0, 1, "检查 Java 环境")
+    java_path, java_major = resolve_java(
+        root, version, metadata, java_path, progress_callback or terminal_progress
+    )
+    print(f"为 Minecraft {version} 选择 Java {java_major}：{java_path}")
 
     if progress_callback:
         progress_callback(0, 1, "检查游戏运行库")

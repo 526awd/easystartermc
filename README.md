@@ -4,7 +4,7 @@
 
 ## 安装
 
-打开 [GitHub Releases](https://github.com/526awd/easystartermc/releases)，下载与你的系统和处理器匹配的最新发行包。预编译发行包不需要安装 Python；所有平台都需要另外安装与所选 Minecraft 版本兼容的 Java。启动器不会替你安装 Java。
+打开 [GitHub Releases](https://github.com/526awd/easystartermc/releases)，下载与你的系统和处理器匹配的最新发行包。预编译发行包不需要安装 Python。启动时如果找不到所需 Java，启动器会从微软官方下载兼容的 JDK，并安装到 Minecraft 目录的 `runtime/microsoft-openjdk`；此过程需要网络和额外磁盘空间。
 
 | 系统 | 下载文件 | 安装与启动 |
 | --- | --- | --- |
@@ -46,7 +46,7 @@ Windows ZIP 和 Linux 压缩包需要完整解压后运行，不能只复制主�
 
 ## Java、游戏目录与配置
 
-Java 版本要求取决于你选择的 Minecraft 版本。启动器会根据版本 JSON 中的 `javaVersion.majorVersion` 选择已安装的匹配版本；旧版本元数据缺少此字段时，会根据 Minecraft 版本号推断。启动器不会捆绑或自动安装 Java；若缺少所需主版本，请先安装，再通过 **S 设置**、`JAVA_HOME` 或 `PATH` 提供给启动器。
+Java 版本要求取决于你选择的 Minecraft 版本。启动器会根据版本 JSON 中的 `javaVersion.majorVersion` 选择已安装的匹配版本；旧版本元数据缺少此字段时，会根据 Minecraft 版本号推断。没有精确匹配时，启动器会先寻找已安装的兼容 Microsoft LTS 主版本；如果也没有，则从微软官方地址下载对应平台与处理器架构的 Microsoft Build of OpenJDK，校验 SHA-256 后解压到 Minecraft 目录的 `runtime/microsoft-openjdk`，不会修改系统 Java 配置。Microsoft 当前提供 JDK 11、17、21 和 25；其他所需主版本会使用不低于需求的受支持主版本，例如 Java 8 使用 JDK 11、Java 16 使用 JDK 17。下载需要网络，运行库会占用额外磁盘空间。
 
 默认游戏目录：Windows `%APPDATA%\.minecraft`；macOS `~/Library/Application Support/minecraft`；Linux `$XDG_DATA_HOME/minecraft` 或 `~/.local/share/minecraft`。可用 `MINECRAFT_DIR` 覆盖游戏目录。
 

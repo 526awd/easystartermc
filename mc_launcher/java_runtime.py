@@ -6,7 +6,7 @@ import re
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 
 def required_major(version: str, metadata: dict[str, Any]) -> int:
@@ -142,3 +142,31 @@ def select_java(version: str, metadata: dict[str, Any], preferred: str = "") -> 
         f"Minecraft {version} 需要 Java {required}；当前检测到：{available_text}。"
         f"请安装 Java {required}，或在 S 设置中指定对应 Java；输入 auto 可恢复自动选择。"
     )
+
+
+def resolve_java(root: Path, version: str, metadata: dict[str, Any], preferred: str = "",
+                 progress_callback: Callable[[int, int, str], None] | None = None) -> tuple[str, int]:
+    """Select an installed exact match or install a compatible Microsoft JDK privately."""
+    try:
+        return select_java(version, metadata, preferred)
+    except RuntimeError as missing_error:
+        required = required_major(version, metadata)
+        from .java_downloader import compatible_major, ensure_microsoft_jdk
+
+        jdk_major = compatible_major(required)
+        if jdk_major is None:
+            raise RuntimeError(
+                f"{missing_error}\nMicrosoft Build of OpenJDK 没有可用于 Java {required} 的受支持 LTS 版本。"
+            ) from missing_error
+        for path in _candidates(preferred):
+            if major_version(path) == jdk_major:
+                return str(path.resolve()), jdk_major
+        try:
+            path, actual_major = ensure_microsoft_jdk(
+                required, root / "runtime", progress_callback
+            )
+        except (OSError, RuntimeError) as download_error:
+            raise RuntimeError(
+                f"{missing_error}\n自动下载 Microsoft JDK {jdk_major} 失败：{download_error}"
+            ) from download_error
+        return str(path.resolve()), actual_major
