@@ -4,11 +4,13 @@ import re
 import uuid
 from typing import Any
 
+from .localization import tr
+
 
 def offline_profile(username: str) -> dict[str, Any]:
     username = username.strip()
     if not re.fullmatch(r"[A-Za-z0-9_]{1,16}", username):
-        raise ValueError("离线玩家名须为 1–16 位英文字母、数字或下划线。")
+        raise ValueError(tr('accounts.offline_player_names_must_contain_english_letters_digits_or_underscores'))
     # Matches Java's UUID.nameUUIDFromBytes("OfflinePlayer:<name>".getBytes(UTF_8)).
     raw = bytearray(hashlib.md5(("OfflinePlayer:" + username).encode("utf-8")).digest())
     raw[6] = (raw[6] & 0x0F) | 0x30
@@ -49,5 +51,5 @@ def launch_identity(profile: dict[str, Any], client_id: str | None = None) -> di
     import os
     token = os.environ.get("MC_ACCESS_TOKEN", "")
     if not token or not profile.get("uuid"):
-        raise RuntimeError("此账号没有 Microsoft OAuth 会话。请在账号菜单选择 Microsoft OAuth 登录。")
+        raise RuntimeError(tr('accounts.this_profile_has_no_microsoft_oauth_session_sign_in_from_the_accounts_menu'))
     return {"name": profile["name"], "uuid": profile["uuid"].replace("-", ""), "token": token, "user_type": "msa"}

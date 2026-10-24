@@ -56,11 +56,11 @@ jobs:
             python -m PyInstaller --noconfirm --clean --onedir --console \
               --name easystartermc --collect-all keyring --copy-metadata keyring \
               --collect-all secretstorage --collect-all jeepney \
-              --copy-metadata secretstorage mc_tui.py
+              --copy-metadata secretstorage --collect-data mc_launcher mc_tui.py
           else
             python -m PyInstaller --noconfirm --clean --onedir --console \
               --name easystartermc --collect-all keyring --copy-metadata keyring \
-              mc_tui.py
+              --collect-data mc_launcher mc_tui.py
           fi
 
       - name: Create Windows ZIP

@@ -1,18 +1,17 @@
 """Official and BMCLAPI download source URL mapping."""
 from urllib.parse import urlsplit, urlunsplit
 
+from .localization import tr
+
 OFFICIAL = "official"
 BMCLAPI = "bmclapi"
 BMCLAPI_BASE = "https://bmclapi2.bangbang93.com"
 
-SOURCE_LABELS = {
-    OFFICIAL: "Mojang 官方源",
-    BMCLAPI: "BMCLAPI 国内镜像",
-}
+SOURCE_LABELS = {OFFICIAL: 'download_sources.official_mojang', BMCLAPI: 'download_sources.bmclapi_mirror'}
 
 
 def label(source: str) -> str:
-    return SOURCE_LABELS.get(source, SOURCE_LABELS[OFFICIAL])
+    return tr(SOURCE_LABELS.get(source, SOURCE_LABELS[OFFICIAL]))
 
 
 def mirror_url(url: str, source: str) -> str:

@@ -13,6 +13,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, urlencode, urlparse
 from urllib.request import Request, urlopen
 
+from .localization import tr
+
 SCOPES = "XboxLive.SignIn offline_access"
 AUTHORITY = "https://login.microsoftonline.com/consumers"
 TOKEN_URL = AUTHORITY + "/oauth2/v2.0/token"
@@ -30,15 +32,15 @@ def _dependencies() -> Any:
     try:
         import keyring
     except ImportError as exc:
-        raise RuntimeError("Microsoft 登录依赖未安装。请运行：python -m pip install -r requirements.txt") from exc
+        raise RuntimeError(tr('auth_microsoft.microsoft_sign_in_dependencies_are_missing_run_python_m_pip_install_r_requirements_txt')) from exc
     try:
         backend = keyring.get_keyring()
         if backend.priority <= 0:
-            raise RuntimeError("没有可用的系统安全凭据库；请安装并配置 Windows Credential Manager、macOS Keychain 或 Secret Service。")
+            raise RuntimeError(tr('auth_microsoft.no_system_credential_store_is_available_install_and_configure_windows_credential_manager_macos_keychain_or_secret_service'))
     except RuntimeError:
         raise
     except Exception as exc:
-        raise RuntimeError(f"无法访问系统凭据库：{exc}") from exc
+        raise RuntimeError(tr('auth_microsoft.could_not_access_the_system_credential_store', v_a=exc)) from exc
     return keyring
 
 
@@ -58,17 +60,17 @@ def _request_json(url: str, payload: dict[str, Any] | None = None,
         with urlopen(request, timeout=30) as response:
             result = json.loads(response.read().decode("utf-8"))
             if not isinstance(result, dict):
-                raise RuntimeError("认证服务返回了无法识别的数据。")
+                raise RuntimeError(tr('auth_microsoft.the_authentication_service_returned_an_unrecognized_response'))
             return result
     except HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")[:1200]
         if exc.code == 404 and url == MINECRAFT_PROFILE_URL:
-            raise RuntimeError("该 Microsoft 账号没有 Minecraft Java 档案或游戏权限。") from exc
+            raise RuntimeError(tr('auth_microsoft.this_microsoft_account_has_no_minecraft_java_profile_or_game_entitlement')) from exc
         if exc.code == 403 and "minecraftservices.com" in url:
-            raise RuntimeError("Minecraft 服务拒绝了 OAuth 应用 (403)。请检查应用是否获准访问 Minecraft Services；第三方客户端 ID 可能需要 Microsoft/Mojang 审核。") from exc
-        raise RuntimeError(f"认证请求失败 (HTTP {exc.code})：{detail}") from exc
+            raise RuntimeError(tr('auth_microsoft.minecraft_services_rejected_the_oauth_application_check_whether_the_app_is_approved_for_minecraft_services_third_party_client_ids_may_require_microsoft_mojang_review')) from exc
+        raise RuntimeError(tr('auth_microsoft.authentication_request_failed_http', v_a=exc.code, v_b=detail)) from exc
     except (URLError, TimeoutError) as exc:
-        raise RuntimeError(f"无法连接认证服务：{exc}") from exc
+        raise RuntimeError(tr('auth_microsoft.could_not_connect_to_the_authentication_service', v_a=exc)) from exc
 
 
 def _request_form(url: str, payload: dict[str, str]) -> dict[str, Any]:
@@ -80,13 +82,13 @@ def _request_form(url: str, payload: dict[str, str]) -> dict[str, Any]:
         with urlopen(request, timeout=30) as response:
             result = json.loads(response.read().decode("utf-8"))
             if not isinstance(result, dict):
-                raise RuntimeError("Microsoft OAuth 返回了无法识别的数据。")
+                raise RuntimeError(tr('auth_microsoft.microsoft_oauth_returned_an_unrecognized_response'))
             return result
     except HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")[:1200]
-        raise RuntimeError(f"Microsoft OAuth 请求失败 (HTTP {exc.code})：{detail}") from exc
+        raise RuntimeError(tr('auth_microsoft.microsoft_oauth_request_failed_http', v_a=exc.code, v_b=detail)) from exc
     except (URLError, TimeoutError) as exc:
-        raise RuntimeError(f"无法连接 Microsoft OAuth：{exc}") from exc
+        raise RuntimeError(tr('auth_microsoft.could_not_connect_to_microsoft_oauth', v_a=exc)) from exc
 
 
 def _is_legacy_client(client_id: str) -> bool:
@@ -96,7 +98,7 @@ def _is_legacy_client(client_id: str) -> bool:
 def _legacy_authorize(client_id: str, show_message: Callable[[str], None],
                       read_redirect: Callable[[], str] | None) -> dict[str, Any]:
     if read_redirect is None:
-        raise RuntimeError("旧版 Minecraft Launcher OAuth 需要粘贴浏览器登录后的重定向地址。")
+        raise RuntimeError(tr('auth_microsoft.legacy_minecraft_launcher_oauth_requires_you_to_paste_the_redirect_url_after_signing_in'))
     redirect_uri = "https://login.live.com/oauth20_desktop.srf"
     params = {
         "client_id": client_id,
@@ -108,14 +110,14 @@ def _legacy_authorize(client_id: str, show_message: Callable[[str], None],
     }
     login_url = "https://login.live.com/oauth20_authorize.srf?" + urlencode(params)
     webbrowser.open(login_url)
-    show_message("浏览器已打开 Microsoft 登录。登录完成后，复制地址栏中的完整重定向 URL 并粘贴到终端。")
+    show_message(tr('auth_microsoft.microsoft_sign_in_opened_in_your_browser_after_signing_in_copy_the_full_redirect_url_from_the_address_bar_and_paste_it_into_the_terminal'))
     returned_url = read_redirect().strip()
     query = parse_qs(urlparse(returned_url).query)
     if "error" in query:
-        raise RuntimeError("Microsoft 登录未完成：" + query.get("error_description", query["error"])[0])
+        raise RuntimeError(tr('auth_microsoft.microsoft_sign_in_did_not_complete', v_a=query.get('error_description', query['error'])[0]))
     codes = query.get("code", [])
     if not codes:
-        raise RuntimeError("重定向地址中没有授权码。请粘贴浏览器地址栏中的完整 URL。")
+        raise RuntimeError(tr('auth_microsoft.the_redirect_url_does_not_contain_an_authorization_code_paste_the_full_url_from_your_browser_address_bar'))
     return _request_form("https://login.live.com/oauth20_token.srf", {
         "client_id": client_id,
         "code": codes[0],
@@ -137,15 +139,14 @@ def _authorization_code(client_id: str, show_message: Callable[[str], None]) -> 
         def do_GET(self) -> None:
             query = parse_qs(urlparse(self.path).query)
             if not secrets.compare_digest(query.get("state", [""])[0], state):
-                received["error"] = "OAuth 回调 state 不匹配，已拒绝此响应。"
+                received["error"] = tr('auth_microsoft.oauth_callback_state_did_not_match_the_response_was_rejected')
             elif query.get("error"):
                 received["error"] = query.get("error_description", query["error"])[0]
             elif query.get("code"):
                 received["code"] = query["code"][0]
             else:
-                received["error"] = "OAuth 回调中没有授权码。"
-            body = ("Microsoft 登录完成。可以关闭此页面并返回启动器。"
-                    if received.get("code") else "Microsoft 登录未完成。请返回启动器查看错误信息。")
+                received["error"] = tr('auth_microsoft.the_oauth_callback_did_not_contain_an_authorization_code')
+            body = tr('auth_microsoft.microsoft_sign_in_is_complete_you_can_close_this_page_and_return_to_the_launcher') if received.get('code') else tr('auth_microsoft.microsoft_sign_in_did_not_complete_return_to_the_launcher_for_details')
             encoded = body.encode("utf-8")
             self.send_response(200 if received.get("code") else 400)
             self.send_header("Content-Type", "text/plain; charset=utf-8")
@@ -160,7 +161,7 @@ def _authorization_code(client_id: str, show_message: Callable[[str], None]) -> 
     try:
         server = HTTPServer(("127.0.0.1", 0), CallbackHandler)
     except OSError as exc:
-        raise RuntimeError(f"无法启动本机 OAuth 回调服务：{exc}") from exc
+        raise RuntimeError(tr('auth_microsoft.could_not_start_the_local_oauth_callback_server', v_a=exc)) from exc
     server.timeout = 1
     # Microsoft accepts a loopback localhost redirect with a dynamically chosen port.
     redirect_uri = f"http://localhost:{server.server_port}"
@@ -175,15 +176,15 @@ def _authorization_code(client_id: str, show_message: Callable[[str], None]) -> 
         "code_challenge_method": "S256",
     }
     url = AUTHORIZE_URL + "?" + urlencode(params)
-    show_message("即将打开浏览器进行 Microsoft 授权。完成后页面会自动返回启动器。")
+    show_message(tr('auth_microsoft.a_browser_will_open_for_microsoft_authorization_the_page_will_return_to_the_launcher_when_sign_in_is_complete'))
     try:
         opened = webbrowser.open(url)
     except Exception as exc:
         server.server_close()
-        raise RuntimeError(f"无法自动打开浏览器：{exc}") from exc
+        raise RuntimeError(tr('auth_microsoft.could_not_open_a_browser_automatically', v_a=exc)) from exc
     if not opened:
         server.server_close()
-        raise RuntimeError("无法自动打开浏览器；请检查系统浏览器设置后重试。")
+        raise RuntimeError(tr('auth_microsoft.could_not_open_a_browser_automatically_check_your_browser_settings_and_try_again'))
     try:
         for _ in range(300):
             if event.is_set():
@@ -192,9 +193,9 @@ def _authorization_code(client_id: str, show_message: Callable[[str], None]) -> 
     finally:
         server.server_close()
     if not event.is_set():
-        raise RuntimeError("等待 Microsoft 登录回调超时，请重新登录。")
+        raise RuntimeError(tr('auth_microsoft.timed_out_waiting_for_the_microsoft_sign_in_callback_please_try_again'))
     if received.get("error"):
-        raise RuntimeError("Microsoft 登录失败：" + received["error"])
+        raise RuntimeError(tr('auth_microsoft.microsoft_sign_in_failed', v_a=received['error']))
     token_request = {
         "client_id": client_id,
         "grant_type": "authorization_code",
@@ -223,7 +224,7 @@ def _minecraft_exchange(ms_access_token: str, legacy_client: bool = False) -> tu
         user_token = user["Token"]
         user_hash = user["DisplayClaims"]["xui"][0]["uhs"]
     except (KeyError, IndexError, TypeError) as exc:
-        raise RuntimeError("Xbox Live 没有返回用户令牌。请确认账号已启用 Xbox 身份。") from exc
+        raise RuntimeError(tr('auth_microsoft.xbox_live_did_not_return_a_user_token_make_sure_xbox_identity_is_enabled_for_this_account')) from exc
 
     xsts = _request_json(XSTS_URL, {
         "Properties": {"SandboxId": "RETAIL", "UserTokens": [user_token]},
@@ -233,7 +234,7 @@ def _minecraft_exchange(ms_access_token: str, legacy_client: bool = False) -> tu
     try:
         identity_token = "XBL3.0 x=" + user_hash + ";" + xsts["Token"]
     except KeyError as exc:
-        raise RuntimeError("Xbox XSTS 没有返回授权令牌。") from exc
+        raise RuntimeError(tr('auth_microsoft.xbox_xsts_did_not_return_an_authorization_token')) from exc
 
     minecraft = _request_json(MINECRAFT_LOGIN_URL, {
         "identityToken": identity_token,
@@ -241,10 +242,10 @@ def _minecraft_exchange(ms_access_token: str, legacy_client: bool = False) -> tu
     })
     access_token = minecraft.get("access_token")
     if not access_token:
-        raise RuntimeError("Minecraft Services 没有返回 accessToken。")
+        raise RuntimeError(tr('auth_microsoft.minecraft_services_did_not_return_an_accesstoken'))
     profile = _request_json(MINECRAFT_PROFILE_URL, bearer=access_token)
     if not profile.get("id") or not profile.get("name"):
-        raise RuntimeError("该 Microsoft 账号没有可用的 Minecraft Java 档案或游戏权限,你很可能没有购买我的世界正版。")
+        raise RuntimeError(tr('auth_microsoft.this_microsoft_account_has_no_minecraft_java_profile_or_game_entitlement_you_may_not_own_minecraft_java_edition'))
     return profile, access_token
 
 
@@ -254,11 +255,11 @@ def sign_in(client_id: str, show_message: Callable[[str], None],
         keyring = _dependencies()
         msa_tokens = _legacy_authorize(client_id, show_message, read_redirect)
         if not msa_tokens.get("access_token"):
-            raise RuntimeError("Microsoft OAuth 没有返回访问令牌。")
+            raise RuntimeError(tr('auth_microsoft.microsoft_oauth_did_not_return_an_access_token'))
         profile, _ = _minecraft_exchange(msa_tokens["access_token"], legacy_client=True)
         refresh_token = msa_tokens.get("refresh_token")
         if not refresh_token:
-            raise RuntimeError("Microsoft 没有返回 refresh token；请重新登录并确认同意 Xbox 登录权限。")
+            raise RuntimeError(tr('auth_microsoft.microsoft_did_not_return_a_refresh_token_sign_in_again_and_grant_xbox_sign_in_permission'))
         _store_refresh(keyring, client_id, profile["id"], refresh_token)
         return {"name": profile["name"], "uuid": profile["id"], "type": "microsoft",
                 "client_id": client_id, "auth_mode": "legacy"}
@@ -266,12 +267,12 @@ def sign_in(client_id: str, show_message: Callable[[str], None],
     keyring = _dependencies()
     result = _authorization_code(client_id, show_message)
     if not result.get("access_token"):
-        error = result.get("error_description") or result.get("error") or "授权码兑换没有返回访问令牌。"
-        raise RuntimeError("Microsoft 登录失败：" + error)
+        error = result.get("error_description") or result.get("error") or tr('auth_microsoft.authorization_code_exchange_did_not_return_an_access_token')
+        raise RuntimeError(tr('auth_microsoft.microsoft_sign_in_failed', v_a=error))
     profile, _ = _minecraft_exchange(result["access_token"])
     refresh_token = result.get("refresh_token")
     if not refresh_token:
-        raise RuntimeError("Microsoft 没有返回 refresh token；请重新授权并同意离线访问权限。")
+        raise RuntimeError(tr('auth_microsoft.microsoft_did_not_return_a_refresh_token_authorize_again_and_grant_offline_access'))
     _store_refresh(keyring, client_id, profile["id"], refresh_token)
     return {"name": profile["name"], "uuid": profile["id"],
             "type": "microsoft", "client_id": client_id, "auth_mode": "pkce"}
@@ -284,23 +285,23 @@ def minecraft_identity(profile: dict[str, str], client_id: str) -> dict[str, str
         try:
             refresh_token = keyring.get_password(LEGACY_REFRESH_SERVICE, refresh_key)
         except Exception as exc:
-            raise RuntimeError(f"无法读取系统凭据库：{exc}") from exc
+            raise RuntimeError(tr('auth_microsoft.could_not_read_the_system_credential_store', v_a=exc)) from exc
         if not refresh_token:
-            raise RuntimeError("Microsoft refresh token 不存在。请在账号菜单重新登录。")
+            raise RuntimeError(tr('auth_microsoft.microsoft_refresh_token_is_missing_sign_in_again_from_the_accounts_menu'))
         msa_tokens = _request_form("https://login.live.com/oauth20_token.srf", {
             "client_id": client_id,
             "grant_type": "refresh_token",
             "refresh_token": refresh_token,
         })
         if not msa_tokens.get("access_token"):
-            raise RuntimeError("Microsoft 会话刷新失败；请重新登录。")
+            raise RuntimeError(tr('auth_microsoft.could_not_refresh_the_microsoft_session_please_sign_in_again'))
         _store_refresh(keyring, client_id, profile["uuid"],
                        msa_tokens.get("refresh_token") or refresh_token)
         # Live's refresh endpoint issues an RPS ticket in the modern form even
         # when the initial authorization used the legacy desktop redirect.
         minecraft_profile, access_token = _minecraft_exchange(msa_tokens["access_token"])
         if minecraft_profile.get("id", "").replace("-", "").lower() != profile.get("uuid", "").replace("-", "").lower():
-            raise RuntimeError("当前 Microsoft 会话与所选 Minecraft 档案不匹配，请重新登录该账号。")
+            raise RuntimeError(tr('auth_microsoft.the_current_microsoft_session_does_not_match_the_selected_minecraft_profile_sign_in_to_that_account_again'))
         return {"name": minecraft_profile["name"], "uuid": minecraft_profile["id"].replace("-", ""),
                 "token": access_token, "user_type": "msa"}
 
@@ -309,9 +310,9 @@ def minecraft_identity(profile: dict[str, str], client_id: str) -> dict[str, str
     try:
         refresh_token = keyring.get_password(LEGACY_REFRESH_SERVICE, refresh_key)
     except Exception as exc:
-        raise RuntimeError(f"无法读取系统凭据库：{exc}") from exc
+        raise RuntimeError(tr('auth_microsoft.could_not_read_the_system_credential_store', v_a=exc)) from exc
     if not refresh_token:
-        raise RuntimeError("Microsoft refresh token 不存在。请在账号菜单重新登录。")
+        raise RuntimeError(tr('auth_microsoft.microsoft_refresh_token_is_missing_sign_in_again_from_the_accounts_menu'))
     token_request = {
         "client_id": client_id,
         "grant_type": "refresh_token",
@@ -323,13 +324,13 @@ def minecraft_identity(profile: dict[str, str], client_id: str) -> dict[str, str
         token_request["client_secret"] = client_secret
     result = _request_form(TOKEN_URL, token_request)
     if not result.get("access_token"):
-        detail = result.get("error_description") or result.get("error") or "令牌已失效。"
-        raise RuntimeError("Microsoft 会话刷新失败，请重新登录：" + detail)
+        detail = result.get("error_description") or result.get("error") or tr('auth_microsoft.the_token_has_expired')
+        raise RuntimeError(tr('auth_microsoft.could_not_refresh_the_microsoft_session_sign_in_again', v_a=detail))
     _store_refresh(keyring, client_id, profile["uuid"],
                    result.get("refresh_token") or refresh_token)
     minecraft_profile, access_token = _minecraft_exchange(result["access_token"])
     if minecraft_profile.get("id", "").replace("-", "").lower() != profile.get("uuid", "").replace("-", "").lower():
-        raise RuntimeError("当前 Microsoft 会话与所选 Minecraft 档案不匹配，请重新登录该账号。")
+        raise RuntimeError(tr('auth_microsoft.the_current_microsoft_session_does_not_match_the_selected_minecraft_profile_sign_in_to_that_account_again'))
     return {"name": minecraft_profile["name"], "uuid": minecraft_profile["id"].replace("-", ""),
             "token": access_token, "user_type": "msa"}
 
@@ -343,7 +344,7 @@ def remove_account(profile: dict[str, str]) -> None:
             if keyring.get_password(LEGACY_REFRESH_SERVICE, name):
                 keyring.delete_password(LEGACY_REFRESH_SERVICE, name)
         except Exception as exc:
-            raise RuntimeError(f"无法从系统凭据库删除 Microsoft refresh token：{exc}") from exc
+            raise RuntimeError(tr('auth_microsoft.could_not_remove_the_microsoft_refresh_token_from_the_system_credential_store', v_a=exc)) from exc
         return
     keyring = _dependencies()
     try:
@@ -351,7 +352,7 @@ def remove_account(profile: dict[str, str]) -> None:
         if keyring.get_password(LEGACY_REFRESH_SERVICE, name):
             keyring.delete_password(LEGACY_REFRESH_SERVICE, name)
     except Exception as exc:
-        raise RuntimeError(f"无法从系统凭据库删除 Microsoft refresh token：{exc}") from exc
+        raise RuntimeError(tr('auth_microsoft.could_not_remove_the_microsoft_refresh_token_from_the_system_credential_store', v_a=exc)) from exc
 
 
 def _refresh_key(client_id: str, profile_id: str) -> str:
@@ -362,4 +363,4 @@ def _store_refresh(keyring: Any, client_id: str, profile_id: str, token: str) ->
     try:
         keyring.set_password(LEGACY_REFRESH_SERVICE, _refresh_key(client_id, profile_id), token)
     except Exception as exc:
-        raise RuntimeError(f"无法将 refresh token 安全写入系统凭据库：{exc}") from exc
+        raise RuntimeError(tr('auth_microsoft.could_not_safely_store_the_refresh_token_in_the_system_credential_store', v_a=exc)) from exc

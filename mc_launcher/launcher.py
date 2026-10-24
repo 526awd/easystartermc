@@ -10,6 +10,7 @@ from typing import Any, Callable
 
 from .installer import ensure_libraries
 from .download_sources import OFFICIAL, label as source_label
+from .localization import tr
 from .java_runtime import major_version, required_major, resolve_java, select_java
 from .platforms import allowed, native_artifact
 
@@ -82,8 +83,7 @@ def build_command(root: Path, version: str, metadata: dict[str, Any], identity: 
         required = required_major(version, metadata)
         if selected_major is None or selected_major < required:
             raise RuntimeError(
-                f"Java 可执行文件版本不符合要求：{selected_path}（需要 Java {required}，"
-                f"检测到 {selected_major or '未知'}）。"
+                tr('launcher.java_executable_version_does_not_meet_the_requirement_java_required_detected', v_a=selected_path, v_b=required, v_c=selected_major or tr('launcher.unknown'))
             )
         java_path = str(selected_path)
     else:
@@ -92,7 +92,7 @@ def build_command(root: Path, version: str, metadata: dict[str, Any], identity: 
     jar_id = metadata.get("jar", version)
     client = root / "versions" / jar_id / f"{jar_id}.jar"
     if not client.is_file():
-        raise RuntimeError(f"缺少客户端 JAR：{client}。请重新安装该版本。")
+        raise RuntimeError(tr('launcher.missing_client_jar_reinstall_this_version', v_a=client))
     native_dir = _extract_natives(root, version, metadata)
     classpath_parts = []
     for library in metadata.get("libraries", []):
@@ -110,7 +110,7 @@ def build_command(root: Path, version: str, metadata: dict[str, Any], identity: 
         else:
             continue
         if not path.is_file():
-            raise RuntimeError(f"缺少运行库：{path}。请重新安装该版本。")
+            raise RuntimeError(tr('launcher.missing_library_reinstall_this_version', v_a=path))
         classpath_parts.append(str(path.resolve()))
     classpath_parts.append(str(client.resolve()))
     classpath = os.pathsep.join(classpath_parts)
@@ -166,25 +166,25 @@ def launch(root: Path, version: str, metadata: dict[str, Any], identity: dict[st
            progress_callback: Callable[[int, int, str], None] | None = None,
            on_libraries_ready: Callable[[], None] | None = None) -> int:
     if progress_callback is None:
-        print(f"检查 Java 环境和游戏运行库；下载源：{source_label(source)}，镜像失败时会尝试官方源。")
+        print(tr('launcher.checking_java_and_game_libraries_download_source_the_official_source_will_be_tried_if_the_mirror_fails', v_a=source_label(source)))
 
     def terminal_progress(done: int, total: int, filename: str) -> None:
         print(f"\r{filename[:48]:48} {done}/{total}", end="", flush=True)
 
     if progress_callback:
-        progress_callback(0, 1, "检查 Java 环境")
+        progress_callback(0, 1, tr('launcher.checking_java_runtime'))
     java_path, java_major = resolve_java(
         root, version, metadata, java_path, progress_callback or terminal_progress
     )
-    print(f"为 Minecraft {version} 选择 Java {java_major}：{java_path}")
+    print(tr('launcher.selected_java_for_minecraft', v_a=version, v_b=java_major, v_c=java_path))
 
     if progress_callback:
-        progress_callback(0, 1, "检查游戏运行库")
+        progress_callback(0, 1, tr('launcher.checking_game_libraries'))
     ensure_libraries(root, metadata, progress_callback or terminal_progress, source)
     if progress_callback is None:
         print(file=sys.stdout)
     if on_libraries_ready:
         on_libraries_ready()
     command, cwd = build_command(root, version, metadata, identity, memory_mb, java_path)
-    print("\n启动游戏；日志会显示在此终端。按 Ctrl+C 可结束进程。\n")
+    print(tr('launcher.launching_the_game_logs_will_appear_in_this_terminal_press_ctrl_c_to_stop_the_process'))
     return subprocess.call(command, cwd=root)

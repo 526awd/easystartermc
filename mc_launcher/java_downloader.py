@@ -17,6 +17,8 @@ from typing import Callable
 
 from .java_runtime import major_version
 
+from .localization import tr
+
 ProgressCallback = Callable[[int, int, str], None]
 _SUPPORTED_MAJORS = (11, 17, 21, 25)
 _CHUNK_SIZE = 1024 * 1024
@@ -37,7 +39,7 @@ def _platform_archive() -> tuple[str, str, str]:
     }.get(machine)
     if not system_key or not arch:
         raise RuntimeError(
-            f"Microsoft JDK 自动下载暂不支持当前平台：{system or platform.system()} {machine or platform.machine()}"
+            tr('java_downloader.automatic_microsoft_jdk_downloads_are_not_supported_on_this_platform', v_a=system or platform.system(), v_b=machine or platform.machine())
         )
     extension = "zip" if system == "Windows" else "tar.gz"
     return system_key, arch, extension
@@ -49,7 +51,7 @@ def _archive_path(base: Path, name: str) -> Path:
     member = PurePosixPath(normalized)
     if (not normalized or member.is_absolute() or ".." in member.parts
             or (member.parts and ":" in member.parts[0]) or "\0" in normalized):
-        raise RuntimeError(f"Microsoft JDK 压缩包包含不安全路径：{name!r}")
+        raise RuntimeError(tr('java_downloader.microsoft_jdk_archive_contains_an_unsafe_path', v_a=repr(name)))
     return base.joinpath(*member.parts)
 
 
@@ -62,7 +64,7 @@ def _extract_zip(archive_path: Path, destination: Path) -> None:
                 continue
             mode = (member.external_attr >> 16) & 0xFFFF
             if stat.S_ISLNK(mode):
-                raise RuntimeError("Microsoft JDK ZIP 中包含不支持的符号链接。")
+                raise RuntimeError(tr('java_downloader.the_microsoft_jdk_zip_contains_an_unsupported_symbolic_link'))
             target.parent.mkdir(parents=True, exist_ok=True)
             with archive.open(member) as source, target.open("wb") as output:
                 shutil.copyfileobj(source, output, _CHUNK_SIZE)
@@ -78,7 +80,7 @@ def _extract_tar(archive_path: Path, destination: Path) -> None:
                 target.parent.mkdir(parents=True, exist_ok=True)
                 source = archive.extractfile(member)
                 if source is None:
-                    raise RuntimeError(f"无法解压 JDK 文件：{member.name}")
+                    raise RuntimeError(tr('java_downloader.could_not_extract_jdk_file', v_a=member.name))
                 with source, target.open("wb") as output:
                     shutil.copyfileobj(source, output, _CHUNK_SIZE)
                 try:
@@ -89,23 +91,23 @@ def _extract_tar(archive_path: Path, destination: Path) -> None:
                 link_name = member.linkname.replace("\\", "/")
                 link_path = PurePosixPath(link_name)
                 if link_path.is_absolute() or (link_path.parts and ":" in link_path.parts[0]):
-                    raise RuntimeError(f"Microsoft JDK 压缩包包含不安全链接：{member.name!r}")
+                    raise RuntimeError(tr('java_downloader.microsoft_jdk_archive_contains_an_unsafe_link', v_a=repr(member.name)))
                 if member.issym():
                     resolved = posixpath.normpath(posixpath.join(posixpath.dirname(member.name), link_name))
                 else:
                     resolved = posixpath.normpath(link_name)
                 if resolved == ".." or resolved.startswith("../"):
-                    raise RuntimeError(f"Microsoft JDK 压缩包包含越界链接：{member.name!r}")
+                    raise RuntimeError(tr('java_downloader.microsoft_jdk_archive_contains_a_link_outside_the_extraction_directory', v_a=repr(member.name)))
                 target.parent.mkdir(parents=True, exist_ok=True)
                 link_target = _archive_path(destination, resolved)
                 if member.issym():
                     os.symlink(link_name, target)
                 else:
                     if not link_target.is_file():
-                        raise RuntimeError(f"Microsoft JDK 压缩包硬链接目标不存在：{member.linkname!r}")
+                        raise RuntimeError(tr('java_downloader.microsoft_jdk_archive_hard_link_target_does_not_exist', v_a=repr(member.linkname)))
                     os.link(link_target, target)
             else:
-                raise RuntimeError(f"Microsoft JDK 压缩包包含不支持的文件类型：{member.name!r}")
+                raise RuntimeError(tr('java_downloader.microsoft_jdk_archive_contains_an_unsupported_file_type', v_a=repr(member.name)))
 
 
 def _find_java(directory: Path) -> Path | None:
@@ -137,14 +139,14 @@ def _download(url: str, destination: Path, callback: ProgressCallback | None,
                         if callback:
                             callback(completed, max(total, completed, 1), description)
                 if total and completed != total:
-                    raise OSError(f"下载长度不匹配（预期 {total}，收到 {completed} 字节）")
+                    raise OSError(tr('java_downloader.download_size_mismatch_expected_received_bytes', v_a=total, v_b=completed))
             return
         except (OSError, urllib.error.URLError, TimeoutError) as exc:
             last_error = exc
             destination.unlink(missing_ok=True)
             if attempt < 3:
                 time.sleep(attempt)
-    raise RuntimeError(f"Microsoft JDK 下载重试 3 次后仍失败：{url}（{last_error}）") from last_error
+    raise RuntimeError(tr('java_downloader.microsoft_jdk_download_failed_after_attempts', v_a=url, v_b=last_error)) from last_error
 
 
 def _sha256(path: Path) -> str:
@@ -160,7 +162,7 @@ def _remove_target(target: Path, parent: Path) -> None:
         target.unlink()
     elif target.exists():
         if target.resolve().parent != parent.resolve():
-            raise RuntimeError(f"拒绝清理运行库目录之外的路径：{target}")
+            raise RuntimeError(tr('java_downloader.refusing_to_remove_a_path_outside_the_runtime_directory', v_a=target))
         if target.is_dir():
             shutil.rmtree(target)
         else:
@@ -173,7 +175,7 @@ def ensure_microsoft_jdk(required_major: int, runtime_root: Path,
     jdk_major = compatible_major(required_major)
     if jdk_major is None:
         raise RuntimeError(
-            f"Microsoft Build of OpenJDK 当前没有可用于 Java {required_major} 的受支持 LTS 版本。"
+            tr('java_downloader.microsoft_build_of_openjdk_has_no_supported_lts_release_for_java', v_a=required_major)
         )
 
     os_key, arch, extension = _platform_archive()
@@ -198,18 +200,18 @@ def ensure_microsoft_jdk(required_major: int, runtime_root: Path,
         unpacked = temp / "unpacked"
         unpacked.mkdir()
 
-        _download(url, archive_path, progress_callback, f"下载 Microsoft JDK {jdk_major}")
-        _download(checksum_url, checksum_path, None, "下载 Microsoft JDK 校验文件")
+        _download(url, archive_path, progress_callback, tr('java_downloader.downloading_microsoft_jdk', v_a=jdk_major))
+        _download(checksum_url, checksum_path, None, tr('java_downloader.downloading_microsoft_jdk_checksum'))
         checksum_text = checksum_path.read_text(encoding="ascii", errors="replace")
         expected = re.search(r"\b([0-9a-fA-F]{64})\b", checksum_text)
         if not expected:
-            raise RuntimeError(f"Microsoft JDK 校验文件格式无效：{checksum_url}")
+            raise RuntimeError(tr('java_downloader.microsoft_jdk_checksum_file_is_invalid', v_a=checksum_url))
         actual = _sha256(archive_path)
         if actual.lower() != expected.group(1).lower():
-            raise RuntimeError("Microsoft JDK SHA-256 校验失败，已拒绝解压。")
+            raise RuntimeError(tr('java_downloader.microsoft_jdk_sha_verification_failed_the_archive_was_not_extracted'))
 
         if progress_callback:
-            progress_callback(0, 1, f"校验通过，解压 Microsoft JDK {jdk_major}")
+            progress_callback(0, 1, tr('java_downloader.checksum_verified_extracting_microsoft_jdk', v_a=jdk_major))
         if extension == "zip":
             _extract_zip(archive_path, unpacked)
         else:
@@ -219,15 +221,15 @@ def ensure_microsoft_jdk(required_major: int, runtime_root: Path,
         actual_major = major_version(java_path) if java_path else None
         if actual_major != jdk_major:
             raise RuntimeError(
-                f"Microsoft JDK 解压后版本校验失败（预期 Java {jdk_major}，检测到 {actual_major or '未知'}）。"
+                tr('java_downloader.microsoft_jdk_version_check_failed_after_extraction_expected_java_detected', v_a=jdk_major, v_b=actual_major or tr('java_downloader.unknown'))
             )
 
         _remove_target(target, install_parent)
         unpacked.replace(target)
         java_path = _find_java(target)
         if not java_path:
-            raise RuntimeError("Microsoft JDK 安装完成后未找到 Java 可执行文件。")
+            raise RuntimeError(tr('java_downloader.could_not_find_the_java_executable_after_installing_microsoft_jdk'))
 
     if progress_callback:
-        progress_callback(1, 1, f"Microsoft JDK {jdk_major} 已就绪")
+        progress_callback(1, 1, tr('java_downloader.microsoft_jdk_is_ready', v_a=jdk_major))
     return java_path, jdk_major

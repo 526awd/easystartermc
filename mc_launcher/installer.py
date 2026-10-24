@@ -11,20 +11,22 @@ from .downloader import download_many
 from .metadata import version_metadata
 from .platforms import allowed, native_artifact
 
+from .localization import tr
+
 InstallProgress = Callable[[int, int, str], None]
 
 
 def safe_relative(value: str) -> Path:
     posix = PurePosixPath(value)
     if posix.is_absolute() or ".." in posix.parts:
-        raise ValueError(f"官方元数据包含非法路径：{value}")
+        raise ValueError(tr('installer.official_metadata_contains_an_invalid_path', v_a=value))
     return Path(*posix.parts)
 
 
 def maven_path(coordinate: str) -> str:
     parts = coordinate.split(":")
     if len(parts) < 3:
-        raise ValueError(f"无效 Maven 坐标：{coordinate}")
+        raise ValueError(tr('installer.invalid_maven_coordinate', v_a=coordinate))
     group, artifact, version = parts[:3]
     classifier = parts[3] if len(parts) > 3 else ""
     extension = parts[4] if len(parts) > 4 else "jar"
@@ -82,7 +84,7 @@ def install(root: Path, version_id: str, manifest: dict[str, Any],
     downloads = metadata.get("downloads", {})
     client = downloads.get("client")
     if not client:
-        raise RuntimeError(f"版本 {version_id} 没有官方客户端 JAR 下载项。")
+        raise RuntimeError(tr('installer.version_has_no_official_client_jar_download_entry', v_a=version_id))
     jobs.append((client["url"], version_dir / f"{version_id}.jar", client.get("sha1"), client.get("size")))
 
     asset_index_info = metadata.get("assetIndex")

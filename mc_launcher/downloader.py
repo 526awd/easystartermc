@@ -11,6 +11,8 @@ from typing import Any, Callable
 from .download_sources import OFFICIAL, candidates
 from .metadata import USER_AGENT
 
+from .localization import tr
+
 Progress = Callable[[int, int, str], None]
 
 
@@ -43,7 +45,7 @@ def download_one(url: str, destination: Path, sha1: str | None = None,
                 last_error = exc
                 if attempt < retries:
                     time.sleep(min(2 ** attempt, 8))
-    raise RuntimeError(f"已尝试所选下载源及官方源，重试后仍失败：{url} ({last_error})") from last_error
+    raise RuntimeError(tr('downloader.the_selected_and_official_download_sources_failed_after_retries', v_a=url, v_b=last_error)) from last_error
 
 
 def _download_attempt(url: str, destination: Path, sha1: str | None,
@@ -64,9 +66,9 @@ def _download_attempt(url: str, destination: Path, sha1: str | None,
                 digest.update(block)
                 received += len(block)
         if size is not None and received != size:
-            raise IOError(f"文件大小不符 ({received} != {size}): {url}")
+            raise IOError(tr('downloader.file_size_mismatch', v_a=received, v_b=size, v_c=url))
         if sha1 and digest.hexdigest().lower() != sha1.lower():
-            raise IOError(f"SHA-1 校验失败: {url}")
+            raise IOError(tr('downloader.sha_verification_failed', v_a=url))
         os.replace(temp_name, destination)
         temp_name = None
         return True
@@ -93,5 +95,5 @@ def download_many(jobs: list[tuple[str, Path, str | None, int | None]],
                 progress(done, total, futures[future].name)
     if errors:
         first = errors[0]
-        raise RuntimeError(f"{len(errors)} 个文件下载失败，首个错误：{first}") from first
+        raise RuntimeError(tr('downloader.file_downloads_failed_first_error', v_a=len(errors), v_b=first)) from first
 

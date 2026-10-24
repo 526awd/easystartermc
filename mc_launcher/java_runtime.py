@@ -8,6 +8,8 @@ import subprocess
 from pathlib import Path
 from typing import Any, Callable
 
+from .localization import tr
+
 
 def required_major(version: str, metadata: dict[str, Any]) -> int:
     requirement = metadata.get("javaVersion", {})
@@ -29,7 +31,7 @@ def required_major(version: str, metadata: dict[str, Any]) -> int:
         if minor >= 18:
             return 17 if minor < 20 or (minor == 20 and patch < 5) else 21
 
-    raise RuntimeError(f"无法确定 Minecraft {version} 所需的 Java 版本；请检查版本元数据。")
+    raise RuntimeError(tr('java_runtime.could_not_determine_the_java_version_required_by_minecraft_check_the_version_metadata', v_a=version))
 
 
 def _executables(value: str) -> list[Path]:
@@ -137,10 +139,9 @@ def select_java(version: str, metadata: dict[str, Any], preferred: str = "") -> 
                 return str(path), major
 
     available = sorted({major for _, major in detected})
-    available_text = ", ".join(str(major) for major in available) or "未检测到 Java"
+    available_text = ", ".join(str(major) for major in available) or tr('java_runtime.no_java_installations_detected')
     raise RuntimeError(
-        f"Minecraft {version} 需要 Java {required}；当前检测到：{available_text}。"
-        f"请安装 Java {required}，或在 S 设置中指定对应 Java；输入 auto 可恢复自动选择。"
+        tr('java_runtime.minecraft_requires_java_detected_install_java_or_set_its_path_in_settings_enter_auto_to_restore_automatic_selection', v_a=version, v_b=required, v_c=available_text, v_d=required)
     )
 
 
@@ -156,7 +157,7 @@ def resolve_java(root: Path, version: str, metadata: dict[str, Any], preferred: 
         jdk_major = compatible_major(required)
         if jdk_major is None:
             raise RuntimeError(
-                f"{missing_error}\nMicrosoft Build of OpenJDK 没有可用于 Java {required} 的受支持 LTS 版本。"
+                tr('java_runtime.microsoft_build_of_openjdk_has_no_supported_lts_release_for_java', v_a=missing_error, v_b=required)
             ) from missing_error
         for path in _candidates(preferred):
             if major_version(path) == jdk_major:
@@ -167,6 +168,6 @@ def resolve_java(root: Path, version: str, metadata: dict[str, Any], preferred: 
             )
         except (OSError, RuntimeError) as download_error:
             raise RuntimeError(
-                f"{missing_error}\n自动下载 Microsoft JDK {jdk_major} 失败：{download_error}"
+                tr('java_runtime.automatic_download_of_microsoft_jdk_failed', v_a=missing_error, v_b=jdk_major, v_c=download_error)
             ) from download_error
         return str(path.resolve()), actual_major

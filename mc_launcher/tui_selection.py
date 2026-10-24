@@ -7,6 +7,7 @@ from rich.console import Console
 from rich.table import Table
 from rich.text import Text
 
+from .localization import tr
 T = TypeVar("T")
 
 
@@ -45,8 +46,10 @@ def prompt_session() -> Any | None:
 
 def select_item(items: Sequence[T], *, title: str, columns: Sequence[str],
                 render: Callable[[T], Sequence[str]], console: Console,
-                prompt: str = "选择 > ", page_size: int = 18) -> T | None:
+                prompt: str | None = None, page_size: int = 18) -> T | None:
     """Select an item with arrows, paging, and search, with a numbered fallback."""
+    if prompt is None:
+        prompt = tr('tui_selection.select')
     if page_size < 1:
         raise ValueError("page_size must be positive")
 
@@ -54,7 +57,7 @@ def select_item(items: Sequence[T], *, title: str, columns: Sequence[str],
     for item in items:
         values = tuple(str(value) for value in render(item))
         if len(values) != len(columns):
-            raise ValueError("每个列表项必须提供与表格列数相同的显示值。")
+            raise ValueError(tr('tui_selection.each_list_item_must_provide_the_same_number_of_display_values_as_table_columns'))
         entries.append((item, values))
 
     session = prompt_session()
@@ -78,7 +81,7 @@ def select_item(items: Sequence[T], *, title: str, columns: Sequence[str],
 
         table = Table(title=title, box=box.SIMPLE_HEAVY, header_style="bold cyan")
         table.add_column("", no_wrap=True)
-        table.add_column("编号", justify="right", style="dim", no_wrap=True)
+        table.add_column(tr('tui_selection.no'), justify="right", style="dim", no_wrap=True)
         for column in columns:
             table.add_column(column)
         for index, (_, values) in enumerate(page_entries, 1):
@@ -87,15 +90,14 @@ def select_item(items: Sequence[T], *, title: str, columns: Sequence[str],
             table.add_row(marker, Text(str(index)), *(Text(value) for value in values))
         console.print(table)
         console.print(
-            f"第 {page + 1}/{page_count} 页 · 共 {len(visible)} 项"
-            + (f" · 搜索：{search}" if search else ""))
+            tr('tui_selection.page_items', v_a=page + 1, v_b=page_count, v_c=len(visible), v_d=tr('tui_selection.search', v_a=search) if search else ''))
         if notice:
             console.print(f"[yellow]{notice}[/yellow]")
             notice = ""
         if session is not None:
-            console.print("↑/↓ 选择 · Enter 确认 · PageUp/PageDown 翻页 · /关键词 搜索 · Esc 返回")
+            console.print(tr('tui_selection.select_enter_confirm_pageup_pagedown_change_page_keyword_search_esc_back'))
         else:
-            console.print("输入编号并按 Enter 确认 · n/p 翻页 · /关键词 搜索 · Enter 返回")
+            console.print(tr('tui_selection.enter_a_number_and_press_enter_to_confirm_n_p_change_page_keyword_search_enter_back'))
 
         if session is None:
             choice = input(prompt).strip()
@@ -108,7 +110,7 @@ def select_item(items: Sequence[T], *, title: str, columns: Sequence[str],
         if not choice:
             if page_entries:
                 return page_entries[selected_index][0]
-            notice = "当前没有匹配项。"
+            notice = tr('tui_selection.no_matching_items')
             continue
         if lowered == "move-down":
             if selected_index + 1 < len(page_entries):
@@ -117,7 +119,7 @@ def select_item(items: Sequence[T], *, title: str, columns: Sequence[str],
                 page += 1
                 selected_index = 0
             else:
-                notice = "已经是最后一项。"
+                notice = tr('tui_selection.this_is_the_last_item')
             continue
         if lowered == "move-up":
             if selected_index > 0:
@@ -126,21 +128,21 @@ def select_item(items: Sequence[T], *, title: str, columns: Sequence[str],
                 page -= 1
                 selected_index = page_size - 1
             else:
-                notice = "已经是第一项。"
+                notice = tr('tui_selection.this_is_the_first_item')
             continue
         if lowered in ("n", "next"):
             if page + 1 < page_count:
                 page += 1
                 selected_index = 0
             else:
-                notice = "已经是最后一页。"
+                notice = tr('tui_selection.this_is_the_last_page')
             continue
         if lowered in ("p", "prev"):
             if page > 0:
                 page -= 1
                 selected_index = 0
             else:
-                notice = "已经是第一页。"
+                notice = tr('tui_selection.this_is_the_first_page')
             continue
         if lowered.startswith("/"):
             search = choice[1:].strip()
@@ -155,11 +157,11 @@ def select_item(items: Sequence[T], *, title: str, columns: Sequence[str],
         if choice.isdigit():
             if 1 <= int(choice) <= len(page_entries):
                 return page_entries[int(choice) - 1][0]
-            notice = "编号无效；请输入当前页显示的编号。"
+            notice = tr('tui_selection.invalid_number_enter_a_number_shown_on_this_page')
             continue
 
         matches = [item for item, values in visible
                    if choice.casefold() in " ".join(values).casefold()]
         if len(matches) == 1:
             return matches[0]
-        notice = "输入编号，或使用 /关键词 搜索。"
+        notice = tr('tui_selection.enter_a_number_or_search_with_keyword')
