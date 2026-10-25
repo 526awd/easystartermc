@@ -1,64 +1,64 @@
 # [**easystartermc**](https://github.com/526awd/easystartermc)
 
-一个用于 Minecraft Java 版的终端启动器。可以从 Mojang 官方元数据安装游戏，使用离线、Microsoft 或 Yggdrasil 第三方账号启动。
+A terminal launcher for Minecraft: Java Edition. Install game versions from Mojang metadata and launch them with offline, Microsoft, or Yggdrasil accounts.
 
 [简体中文](README.md) | [English](README.en.md)
 
-## 安装
+## Installation
 
-打开 [GitHub Releases](https://github.com/526awd/easystartermc/releases)，下载与你的系统和处理器匹配的最新发行包。预编译发行包不需要安装 Python。启动时如果找不到所需 Java，启动器会从微软官方下载兼容的 JDK，并安装到 Minecraft 目录的 `runtime/microsoft-openjdk`；此过程需要网络和额外磁盘空间。
+Download the latest package for your operating system and processor from [GitHub Releases](https://github.com/526awd/easystartermc/releases). Prebuilt packages do not require Python. If the required Java version is missing, the launcher downloads a compatible Microsoft JDK and stores it under `runtime/microsoft-openjdk` in the Minecraft directory. This requires an internet connection and additional disk space.
 
-| 系统 | 下载文件 | 安装与启动 |
+| Platform | Download | Install and launch |
 | --- | --- | --- |
-| Windows x64 | [easystartermc-windows-x64.zip](https://github.com/526awd/easystartermc/releases/download/latest/easystartermc-windows-x64.zip) | 解压整个 ZIP 文件夹，然后运行 `easystartermc.exe`。请保留同目录中的 DLL 和其他文件。 |
-| Linux x64 | [easystartermc-linux-x64.tar.gz](https://github.com/526awd/easystartermc/releases/download/latest/easystartermc-linux-x64.tar.gz) | 解压后进入 `easystartermc` 文件夹，在终端运行 `./easystartermc`。若提示没有执行权限，运行 `chmod +x easystartermc` 后再启动。该程序包在 Ubuntu 22.04 上构建。 |
-| macOS Intel | [easystartermc-macos-x64.pkg](https://github.com/526awd/easystartermc/releases/download/latest/easystartermc-macos-x64.pkg) | 下载并打开 PKG，按安装器提示完成安装，然后在终端运行 `easystartermc`。 |
-| macOS Apple Silicon | [easystartermc-macos-arm64.pkg](https://github.com/526awd/easystartermc/releases/download/latest/easystartermc-macos-arm64.pkg) | 下载并打开 PKG，按安装器提示完成安装，然后在终端运行 `easystartermc`。 |
+| Windows x64 | [easystartermc-windows-x64.zip](https://github.com/526awd/easystartermc/releases/download/latest/easystartermc-windows-x64.zip) | Extract the entire ZIP folder and run `easystartermc.exe`. Keep the DLLs and other files beside it. |
+| Linux x64 | [easystartermc-linux-x64.tar.gz](https://github.com/526awd/easystartermc/releases/download/latest/easystartermc-linux-x64.tar.gz) | Extract the archive, enter the `easystartermc` folder, and run `./easystartermc` in a terminal. If it is not executable, run `chmod +x easystartermc` first. This package is built on Ubuntu 22.04. |
+| macOS Intel | [easystartermc-macos-x64.pkg](https://github.com/526awd/easystartermc/releases/download/latest/easystartermc-macos-x64.pkg) | Download and open the PKG, follow the installer, then run `easystartermc` in a terminal. |
+| macOS Apple Silicon | [easystartermc-macos-arm64.pkg](https://github.com/526awd/easystartermc/releases/download/latest/easystartermc-macos-arm64.pkg) | Download and open the PKG, follow the installer, then run `easystartermc` in a terminal. |
 
-Windows ZIP 和 Linux 压缩包需要完整解压后运行，不能只复制主程序文件。macOS 安装器会将文件安装到 `/usr/local/lib/easystartermc`，并在 `/usr/local/bin` 创建启动命令。
+Fully extract Windows ZIP and Linux archive packages; do not copy only the main executable. The macOS installer places files in `/usr/local/lib/easystartermc` and creates a launcher command in `/usr/local/bin`.
 
-### macOS 首次打开
+### First launch on macOS
 
-当前 macOS 安装包未签名和公证。若 Gatekeeper 阻止打开，先确认安装包来自本项目的 GitHub Releases，并确认你愿意运行它；然后打开“系统设置 → 隐私与安全性”，在安全性区域选择“仍要打开”。请只对你信任且来源明确的软件这样操作。更多说明见 [Apple 支持：安全地在 Mac 上打开 App](https://support.apple.com/zh-cn/102445)。
+The current macOS package is not signed or notarized. If Gatekeeper blocks it, first confirm that the package came from this project's GitHub Releases and that you trust it. Then open **System Settings → Privacy & Security** and choose **Open Anyway** in the Security section. Only do this for software you trust and obtained from a known source. See [Apple Support: Open an app safely on your Mac](https://support.apple.com/en-us/102445).
 
-## 首次启动
+## First run
 
-1. 启动器会从版本元数据读取所需 Java 主版本，并优先选择精确匹配的已安装版本。若缺少精确版本，会尝试兼容的 Microsoft LTS JDK；必要时从微软官方下载并校验 JDK。下载需要网络，运行库保存在 Minecraft 目录的 `runtime/microsoft-openjdk`。也可在 **S 设置** 中指定 Java 可执行文件路径；输入 `auto` 可清除固定路径并恢复自动选择。
-2. 选择 **I 安装版本**，在分页清单中用 ↑/↓ 选择、按 Enter 安装，或用 PageUp/PageDown 换页；按 Esc 返回。也可用 `/关键词` 搜索，或输入 `installed`/`available` 筛选状态。未安装 `prompt_toolkit` 时，可输入编号并用 `n`/`p` 翻页。启动器会从所选下载源获取版本元数据、客户端、运行库和游戏资源，并校验下载文件。首次安装需要网络和足够的磁盘空间。
-3. 选择 **A 账号档案**，添加离线账号、登录 Microsoft，或登录 Yggdrasil 第三方认证服务器。
-4. 返回主菜单，选择 **L 启动游戏**，再选已安装的版本。
+1. The launcher reads the required Java major version from the game metadata and prefers an installed exact match. If it is missing, the launcher looks for a compatible Microsoft LTS JDK and downloads one from Microsoft when needed. Downloads require an internet connection. Runtime files are stored in `runtime/microsoft-openjdk` inside the Minecraft directory. You can also set a Java executable path in **S Settings**; enter `auto` to clear the fixed path and restore automatic selection.
+2. Choose **I Install**, select a version with the arrow keys, and press Enter; use PageUp/PageDown to change pages and Esc to go back. You can also search with `/keyword` or filter with `installed` and `available`. Without `prompt_toolkit`, enter a number and use `n`/`p` to change pages. The launcher downloads version metadata, the client, libraries, and game assets from the selected source and verifies downloaded files. The first installation requires internet access and enough disk space.
+3. Choose **A Accounts** to add an offline profile, sign in with Microsoft, or use a Yggdrasil third-party authentication server.
+4. Return to the main menu, choose **L Launch**, and select an installed version.
 
-启动版本、删除版本和账号档案选择也支持相同的方向键操作；按 Esc 可取消选择并返回。
+The launch, delete, and account-profile selectors also support arrow-key navigation. Press Esc to cancel and return.
 
-在主菜单选择 **D 删除版本**，选中要移除的已安装版本并输入 `y` 确认。此操作只删除该版本目录；共享游戏资源和运行库会保留。
+Choose **D Delete** in the main menu to remove an installed version. Select it and enter `y` to confirm. This deletes only that version's directory; shared assets and libraries are kept.
 
-启动游戏时会检查运行库；缺失或校验失败的文件会尝试重新下载，单个文件最多重试 3 次。
+Before launching, the launcher checks runtime libraries and retries downloads for missing or invalid files up to three times per file.
 
-### 下载源
+### Download sources
 
-在 **S 设置** 中可选择 **Mojang 官方源** 或 **BMCLAPI 国内镜像**。默认使用 Mojang 官方源；选择 BMCLAPI 后，版本清单、版本元数据、游戏资源和 Minecraft Maven 库会优先从镜像获取。镜像请求失败或文件校验不通过时，启动器会重试并回退到官方 URL；下载文件仍按元数据中的 SHA-1 和文件大小校验。安装界面会显示当前所用来源。BMCLAPI 是社区镜像服务，详见 [BMCLAPI 文档](https://bmclapidoc.bangbang93.com/)。
+In **S Settings**, choose the **official Mojang source** or the **BMCLAPI mirror**. Mojang is used by default. When BMCLAPI is selected, the version list, metadata, game assets, and Minecraft Maven libraries are fetched from the mirror first. Failed requests or checksum mismatches are retried and then fall back to the official URL. Files are checked against metadata SHA-1 hashes and sizes. The install screen shows the active source. BMCLAPI is a community mirror; see the [BMCLAPI documentation](https://bmclapidoc.bangbang93.com/).
 
-## 账号
+## Accounts
 
-- **离线账号**：输入 1–16 位英文、数字或下划线玩家名。适合单人游戏及允许离线玩家的服务器；需要正版验证的服务器不会接受离线账号。
-- **Microsoft 账号**：在账号菜单选择 **O Microsoft 登录**，浏览器完成授权后，启动器会获取 Minecraft Java 档案。登录令牌保存在系统凭据库，不写入 `launcher.json`。
-- **Yggdrasil 第三方账号**：选择 **Y 第三方登录**，输入认证服务器 API 地址、账号和密码。密码只用于登录请求，不会保存；令牌保存在系统凭据库。登录需要兼容 Yggdrasil/authlib-injector 规范的认证服务器。启动时启动器会校验令牌，并在需要时尝试刷新。
+- **Offline profile:** Enter a player name containing 1–16 English letters, digits, or underscores. This works in single-player and on servers that allow offline players. Servers requiring premium authentication will reject offline profiles.
+- **Microsoft account:** Choose **O Microsoft Sign In** in the Accounts menu. After browser authorization, the launcher retrieves the Minecraft Java profile. Login tokens are stored in the system credential store, not in `launcher.json`.
+- **Yggdrasil third-party account:** Choose **Y Third-party Sign In**, then enter the authentication server API URL, account name, and password. The password is only used for the sign-in request and is not saved; tokens are stored in the system credential store. The server must support the Yggdrasil/authlib-injector specifications. The launcher checks and refreshes tokens when needed.
 
-第三方认证地址默认使用 HTTPS；公网 HTTP 会被拒绝，本机回环地址可使用 HTTP。首次登录和令牌刷新需要网络。Linux 上使用 Microsoft 或第三方账号时，系统需要有可用的 Secret Service 凭据库。
+Third-party authentication URLs use HTTPS by default. Public HTTP URLs are rejected; HTTP is allowed only for localhost loopback addresses. Initial sign-in and token refresh require internet access. On Linux, Microsoft and third-party sign-in require an available Secret Service credential store.
 
-## Java、游戏目录与配置
+## Java, game directory, and settings
 
-Java 版本要求取决于你选择的 Minecraft 版本。启动器会根据版本 JSON 中的 `javaVersion.majorVersion` 选择已安装的匹配版本；旧版本元数据缺少此字段时，会根据 Minecraft 版本号推断。没有精确匹配时，启动器会先寻找已安装的兼容 Microsoft LTS 主版本；如果也没有，则从微软官方地址下载对应平台与处理器架构的 Microsoft Build of OpenJDK，校验 SHA-256 后解压到 Minecraft 目录的 `runtime/microsoft-openjdk`，不会修改系统 Java 配置。Microsoft 当前提供 JDK 11、17、21 和 25；其他所需主版本会使用不低于需求的受支持主版本，例如 Java 8 使用 JDK 11、Java 16 使用 JDK 17。下载需要网络，运行库会占用额外磁盘空间。
+The required Java version depends on the Minecraft version. The launcher reads `javaVersion.majorVersion` from version metadata, or infers the requirement from the Minecraft version for older metadata. If an exact version is not installed, it looks for a compatible Microsoft LTS release and downloads one from Microsoft's official URLs when needed. The downloaded archive is checked with SHA-256 before extraction and is kept under `runtime/microsoft-openjdk`; system Java settings are not changed. Microsoft currently provides JDK 11, 17, 21, and 25. When the exact requested major is unavailable, the launcher uses the lowest supported major that is not older than the requirement (for example, JDK 11 for Java 8 and JDK 17 for Java 16).
 
-默认游戏目录：Windows `%APPDATA%\.minecraft`；macOS `~/Library/Application Support/minecraft`；Linux `$XDG_DATA_HOME/minecraft` 或 `~/.local/share/minecraft`。可用 `MINECRAFT_DIR` 覆盖游戏目录。
+Default game directories are `%APPDATA%\.minecraft` on Windows, `~/Library/Application Support/minecraft` on macOS, and `$XDG_DATA_HOME/minecraft` or `~/.local/share/minecraft` on Linux. Set `MINECRAFT_DIR` to use a different directory.
 
-配置文件 `launcher.json` 只保存设置和账号档案，不保存登录令牌。Windows/Linux 发行包将配置保存在程序目录；macOS 配置保存在 `~/Library/Application Support/MC TUI/launcher.json`。删除账号档案时，启动器会尝试从系统凭据库删除相应令牌。
+`launcher.json` stores settings and account profiles, but not login tokens. Windows/Linux packages save the configuration beside the program; macOS saves it to `~/Library/Application Support/MC TUI/launcher.json`. When a profile is deleted, the launcher also attempts to remove its token from the system credential store.
 
-在主菜单选择 **S 设置** 可切换界面语言：简体中文、English 或跟随系统语言；默认自动检测系统语言。
+Use **S Settings** to choose the interface language: Simplified Chinese, English, or the system language. The default is automatic language detection. Localization resources are in `mc_launcher/locales/`.
 
-## 从源码运行
+## Run from source
 
-源码运行需要 Python 3.10+ 和兼容所选游戏版本的 Java：
+Running from source requires Python 3.10 or later. Java is downloaded automatically when the required runtime is missing.
 
 ```bash
 git clone https://github.com/526awd/easystartermc.git
@@ -66,7 +66,7 @@ cd easystartermc
 python -m venv .venv
 ```
 
-激活虚拟环境并安装依赖：
+Activate the virtual environment and install dependencies:
 
 ```powershell
 # Windows PowerShell
@@ -74,47 +74,47 @@ python -m venv .venv
 ```
 
 ```bash
-# Linux 或 macOS
+# Linux or macOS
 source .venv/bin/activate
 ```
 
-然后运行：
+Then run:
 
 ```bash
 python -m pip install -r requirements.txt
 python mc_tui.py
 ```
 
-## 发行流程
+## Release workflow
 
-推送以 `v` 开头的版本标签（例如 `v1.2`）会自动构建 Windows、Linux、macOS Intel 和 Apple Silicon 安装包，并创建 GitHub Release、生成发布说明和上传产物。创建签名标签并推送：
+Pushing a version tag beginning with `v` (for example, `v1.2`) automatically builds packages for Windows, Linux, Intel macOS, and Apple Silicon, then creates a GitHub Release with generated notes and the build artifacts. Create and push a signed tag with:
 
 ```bash
 git tag -s v1.2 -m "v1.2"
 git push origin v1.2
 ```
 
-若标签构建失败，可在 **Actions → Build desktop packages → Run workflow** 中填写 `release_tag`（例如 `v1.1.2`），重新构建并发布已有标签。
+If a tag build fails, open **Actions → Build desktop packages → Run workflow**, enter the existing `release_tag` (for example, `v1.1.2`), and rerun the build and release.
 
-## 项目模块
+## Project modules
 
-- `tui.py`：终端菜单、表格和安装进度
-- `tui_selection.py`：可复用的方向键列表选择和文本输入回退
-- `accounts.py`：账号档案与启动身份
-- `auth_microsoft.py`：Microsoft OAuth、PKCE、Xbox/XSTS/Minecraft 换票
-- `auth_yggdrasil.py`：Yggdrasil 登录、令牌管理与 authlib-injector
-- `download_sources.py`：官方源与 BMCLAPI 镜像地址映射
-- `java_runtime.py`：扫描并选择与 Minecraft 版本匹配的 Java
-- `metadata.py`：Mojang 官方版本清单
-- `downloader.py`：并发下载、文件校验与原子写入
-- `installer.py`：客户端、依赖库和游戏资源安装
-- `version_manager.py`：删除指定版本目录并保护共享文件
-- `launcher.py`：启动参数、原生库提取与游戏进程启动
-- `platforms.py`：操作系统规则及原生库分类
-- `config.py`：游戏目录和本地设置
-- `localization.py` 和 `locales/`：语言设置与本地化。界面代码使用字母语义键，中文和英文分别保存在 `zh_CN.json`、`en_US.json`
+- `tui.py`: terminal menus, tables, and installation progress
+- `tui_selection.py`: reusable keyboard navigation and text-input fallback
+- `localization.py` and `locales/`: language settings and localization. The UI uses alphabetic semantic keys, with Chinese and English text stored in `zh_CN.json` and `en_US.json`
+- `accounts.py`: account profiles and launch identities
+- `auth_microsoft.py`: Microsoft OAuth, PKCE, Xbox/XSTS, and Minecraft token exchange
+- `auth_yggdrasil.py`: Yggdrasil sign-in, token management, and authlib-injector
+- `download_sources.py`: official and BMCLAPI URL mapping
+- `java_runtime.py` and `java_downloader.py`: Java discovery and Microsoft JDK installation
+- `metadata.py`: Mojang version manifest
+- `downloader.py`: concurrent downloads, integrity checks, and atomic writes
+- `installer.py`: game clients, libraries, and assets
+- `version_manager.py`: safe deletion of installed versions
+- `launcher.py`: JVM arguments, native extraction, and game process launch
+- `platforms.py`: operating-system rules and native library selection
+- `config.py`: game directory and local settings
 
-相关资料：[Minecraft 启动器教程](https://zh.minecraft.wiki/w/Tutorial:%E7%BC%96%E5%86%99%E5%90%AF%E5%8A%A8%E5%99%A8?variant=zh-cn)、[Microsoft 授权码流程与 PKCE](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow)、[authlib-injector 启动器技术规范](https://yushijinhun.github.io/authlib-injector/en/launcher-technical-specification.html)、[Yggdrasil 服务端技术规范](https://yushijinhun.github.io/authlib-injector/en/yggdrasil-server-technical-specification.html)。
+References: [Minecraft launcher tutorial](https://zh.minecraft.wiki/w/Tutorial:%E7%BC%96%E5%86%99%E5%90%AF%E5%8A%A8%E5%99%A8?variant=zh-cn), [Microsoft authorization-code flow with PKCE](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow), [authlib-injector launcher specification](https://yushijinhun.github.io/authlib-injector/en/launcher-technical-specification.html), and [Yggdrasil server specification](https://yushijinhun.github.io/authlib-injector/en/yggdrasil-server-technical-specification.html).
 
 ## Star History
 
