@@ -1,4 +1,4 @@
-# [**easystartermc**](https://github.com/526awd/easystartermc)
+# easystartermc
 
 一个用于 Minecraft Java 版的终端启动器。可以从 Mojang 官方元数据安装游戏，使用离线、Microsoft 或 Yggdrasil 第三方账号启动。
 

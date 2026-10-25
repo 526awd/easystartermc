@@ -1,4 +1,4 @@
-# [**easystartermc**](https://github.com/526awd/easystartermc)
+# easystartermc
 
 A terminal launcher for Minecraft: Java Edition. Install game versions from Mojang metadata and launch them with offline, Microsoft, or Yggdrasil accounts.
 
@@ -114,7 +114,7 @@ If a tag build fails, open **Actions → Build desktop packages → Run workflow
 - `platforms.py`: operating-system rules and native library selection
 - `config.py`: game directory and local settings
 
-References: [Minecraft launcher tutorial](https://zh.minecraft.wiki/w/Tutorial:%E7%BC%96%E5%86%99%E5%90%AF%E5%8A%A8%E5%99%A8?variant=zh-cn), [Microsoft authorization-code flow with PKCE](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow), [authlib-injector launcher specification](https://yushijinhun.github.io/authlib-injector/en/launcher-technical-specification.html), and [Yggdrasil server specification](https://yushijinhun.github.io/authlib-injector/en/yggdrasil-server-technical-specification.html).
+References: [Minecraft launcher tutorial](https://github.com/Kakumi/CustomMC-Launcher), [Microsoft authorization-code flow with PKCE](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow), [authlib-injector launcher specification](https://yushijinhun.github.io/authlib-injector/en/launcher-technical-specification.html), and [Yggdrasil server specification](https://yushijinhun.github.io/authlib-injector/en/yggdrasil-server-technical-specification.html).
 
 ## Star History
 
